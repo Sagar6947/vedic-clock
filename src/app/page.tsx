@@ -155,6 +155,27 @@ function GhatiDial({ decimalGhati, isLive }: { decimalGhati: number; isLive: boo
   );
 }
 
+function MoonPhaseSvg({ degreeDiff }: { degreeDiff: number }) {
+  const isWaxing = degreeDiff < 180;
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="rgba(212, 175, 55, 0.4)" strokeWidth="1" />
+      <circle cx="12" cy="12" r="8" fill="#131022" />
+      {degreeDiff >= 170 && degreeDiff <= 190 ? (
+        <circle cx="12" cy="12" r="8" fill="#d4af37" style={{ filter: "drop-shadow(0 0 4px #d4af37)" }} />
+      ) : degreeDiff < 10 || degreeDiff > 350 ? (
+        <circle cx="12" cy="12" r="8" fill="#2d2a3a" />
+      ) : (
+        <path
+          d={isWaxing ? "M12 4a8 8 0 0 1 0 16 8 8 0 0 0 0-16z" : "M12 4a8 8 0 0 0 0 16 8 8 0 0 1 0-16z"}
+          fill="#d4af37"
+          style={{ filter: "drop-shadow(0 0 3px #d4af37)" }}
+        />
+      )}
+    </svg>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,6 +189,7 @@ export default function Home() {
   const [role, setRole]       = useState("student");
   const [isLive, setIsLive]   = useState(true);
   const [travelTime, setTravelTime] = useState("");
+  const [activeView, setActiveView] = useState<"clock_tower" | "app">("clock_tower");
 
   // server data
   const [data, setData]       = useState<FullVedicClockData | null>(null);
@@ -259,6 +281,40 @@ export default function Home() {
   const wallDateStr = `${DAYS[localD.getUTCDay()]}, ${localD.getUTCDate()} ${MONTHS[localD.getUTCMonth()]} ${localD.getUTCFullYear()}`;
   const wallTimeStr = `${fmt2(hh12)}:${fmt2(mm)}:${fmt2(ss)} ${ampm}`;
 
+  const getUpcomingEvents = useCallback(() => {
+    if (!data) return [];
+    const events: { name: string; time: string; type: "sunrise" | "sunset" | "muhurat" | "prahar" }[] = [];
+    const nowMs = wallTime.getTime();
+
+    const srTime = new Date(data.sunriseStart).getTime();
+    const ssTime = new Date(data.sunsetStart).getTime();
+    const nextSrTime = new Date(data.sunriseEnd).getTime();
+
+    if (srTime > nowMs) {
+      events.push({ name: "Sunrise", time: data.sunriseStart, type: "sunrise" });
+    } else if (ssTime > nowMs) {
+      events.push({ name: "Sunset", time: data.sunsetStart, type: "sunset" });
+    } else if (nextSrTime > nowMs) {
+      events.push({ name: "Sunrise", time: data.sunriseEnd, type: "sunrise" });
+    }
+
+    data.prominentMuhurats.forEach(m => {
+      const sMs = new Date(m.startTime).getTime();
+      const eMs = new Date(m.endTime).getTime();
+      if (nowMs >= sMs && nowMs < eMs) {
+        events.push({ name: m.name, time: m.endTime, type: "muhurat" });
+      } else if (sMs > nowMs) {
+        events.push({ name: m.name, time: m.startTime, type: "muhurat" });
+      }
+    });
+
+    events.push({ name: `End of ${data.prahar.name}`, time: data.prahar.endTime, type: "prahar" });
+
+    return events
+      .filter(e => new Date(e.time).getTime() > nowMs)
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  }, [data, wallTime]);
+
   // ── Vedic date string ─────────────────────────────────────────────────────
   const vedicDateStr = data
     ? `${data.vedicCalendar.vikramiSamvat} VS · ${data.vedicCalendar.solarMonthName} · ${data.panchang.tithi.paksha} ${data.panchang.tithi.name}`
@@ -305,6 +361,55 @@ export default function Home() {
             style={{ padding:"3px 8px", borderRadius:"6px", fontSize:"12px",
               background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)",
               color:"#9ca3af", cursor:"pointer" }}>⚙</button>
+        </div>
+      </div>
+
+      {/* ── View Switcher Tab Bar ────────────────────────────────────────── */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", zIndex: 10 }}>
+        <div style={{
+          display: "flex",
+          background: "rgba(13, 11, 22, 0.8)",
+          border: "1px solid rgba(212, 175, 55, 0.25)",
+          borderRadius: "12px",
+          padding: "4px",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4)"
+        }}>
+          <button
+            onClick={() => setActiveView("clock_tower")}
+            style={{
+              padding: "6px 18px",
+              borderRadius: "8px",
+              fontSize: "10px",
+              fontWeight: 700,
+              background: activeView === "clock_tower" ? "rgba(212, 175, 55, 0.15)" : "transparent",
+              color: activeView === "clock_tower" ? "#d4af37" : "#a1a1aa",
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontFamily: "'Cinzel', serif",
+              letterSpacing: "0.08em"
+            }}
+          >
+            🏰 Clock Tower
+          </button>
+          <button
+            onClick={() => setActiveView("app")}
+            style={{
+              padding: "6px 18px",
+              borderRadius: "8px",
+              fontSize: "10px",
+              fontWeight: 700,
+              background: activeView === "app" ? "rgba(212, 175, 55, 0.15)" : "transparent",
+              color: activeView === "app" ? "#d4af37" : "#a1a1aa",
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontFamily: "'Cinzel', serif",
+              letterSpacing: "0.08em"
+            }}
+          >
+            📱 App Dashboard
+          </button>
         </div>
       </div>
 
@@ -360,298 +465,471 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── 3 Prominent Muhurats strip ────────────────────────────────────── */}
-      {data && (
-        <div style={{ width:"100%", maxWidth:"800px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr",
-          gap:"8px", marginBottom:"12px" }}>
-          {data.prominentMuhurats.map(mh => (
-            <div key={mh.name}
-              style={{ background: mh.isActive
-                ? (mh.type==="auspicious" ? "rgba(212,175,55,0.15)" : "rgba(239,68,68,0.15)")
-                : "rgba(13,11,22,0.8)",
-                border: `1px solid ${mh.isActive ? (mh.type==="auspicious" ? "rgba(212,175,55,0.6)" : "rgba(239,68,68,0.6)") : "rgba(255,255,255,0.07)"}`,
-                borderRadius:"10px", padding:"8px", position:"relative", overflow:"hidden" }}>
-              {mh.isActive && (
-                <div style={{ position:"absolute", top:4, right:6,
-                  width:6, height:6, borderRadius:"50%",
-                  background: mh.type==="auspicious" ? "#d4af37" : "#ef4444",
-                  boxShadow:`0 0 6px ${mh.type==="auspicious" ? "#d4af37" : "#ef4444"}`,
-                  animation:"pulse 2s infinite" }} />
-              )}
-              <div style={{ fontSize:"8px", color: mh.type==="auspicious" ? "#d4af37" : "#f87171",
-                fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"2px" }}>
-                {mh.type==="auspicious" ? "✦" : "⚠"} {mh.name}
-              </div>
-              <div style={{ fontSize:"8px", color:"#a1a1aa", lineHeight:1.3 }}>
-                {fmtTimeRange(mh.startTime, mh.endTime, tzH)}
-              </div>
-              <div style={{ marginTop:"4px", fontSize:"8px",
-                color: mh.isActive ? (mh.type==="auspicious" ? "#d4af37" : "#ef4444") : "#52525b",
-                fontWeight:600 }}>
-                {mh.isActive ? (mh.type==="auspicious" ? "ACTIVE ✓" : "ACTIVE — AVOID") : "Inactive"}
-              </div>
+      {/* ── CLOCK TOWER VIEW ────────────────────────────────────────────── */}
+      {activeView === "clock_tower" && (
+        <div style={{
+          width: "100%",
+          maxWidth: "800px",
+          background: "linear-gradient(145deg, #131020 0%, #0a0817 50%, #0f0d1a 100%)",
+          border: "2px solid rgba(212, 175, 55, 0.25)",
+          borderRadius: "24px",
+          boxShadow: "0 0 0 1px rgba(212, 175, 55, 0.08), 0 0 40px rgba(138,43,226,0.15), inset 0 1px 0 rgba(212,175,55,0.1)",
+          padding: "36px 24px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "28px",
+          position: "relative",
+          overflow: "hidden",
+        }}>
+          {/* ambient glows */}
+          <div style={{ position: "absolute", top: -60, left: -60, width: 200, height: 200,
+            borderRadius: "50%", background: "radial-gradient(circle,rgba(138,43,226,0.12),transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, right: -40, width: 180, height: 180,
+            borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,0.08),transparent 70%)", pointerEvents: "none" }} />
+
+          {loading && (
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(6,5,10,0.7)", borderRadius: "22px", zIndex: 10 }}>
+              <span style={{ color: "#d4af37", fontSize: "13px", letterSpacing: "0.15em" }}>Calculating…</span>
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* ── SQUARE CLOCK BODY ────────────────────────────────────────────── */}
-      <div style={{
-        width:"100%", maxWidth:"800px", aspectRatio:"1/1",
-        background:"linear-gradient(145deg,#131020 0%,#0a0817 50%,#0f0d1a 100%)",
-        border:"2px solid rgba(212,175,55,0.25)",
-        borderRadius:"24px",
-        boxShadow:"0 0 0 1px rgba(212,175,55,0.08), 0 0 40px rgba(138,43,226,0.15), inset 0 1px 0 rgba(212,175,55,0.1)",
-        padding:"20px",
-        display:"flex", flexDirection:"column", gap:"14px",
-        position:"relative", overflow:"hidden",
-      }}>
-        {/* ambient glows */}
-        <div style={{ position:"absolute", top:-60, left:-60, width:200, height:200,
-          borderRadius:"50%", background:"radial-gradient(circle,rgba(138,43,226,0.12),transparent 70%)", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", bottom:-40, right:-40, width:180, height:180,
-          borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,0.08),transparent 70%)", pointerEvents:"none" }} />
-
-        {loading && (
-          <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
-            background:"rgba(6,5,10,0.7)", borderRadius:"22px", zIndex:10 }}>
-            <span style={{ color:"#d4af37", fontSize:"13px", letterSpacing:"0.15em" }}>Calculating…</span>
-          </div>
-        )}
-
-        {/* ── Row 1: Festival banner ──────────────────────────────────────── */}
-        {data?.festival && (
-          <button onClick={() => setShowFestivalModal(true)}
-            style={{ background:`linear-gradient(90deg,${data.festival!.color}18,transparent)`,
-              border:`1px solid ${data.festival!.color}40`,
-              borderRadius:"10px", padding:"7px 12px",
-              display:"flex", alignItems:"center", justifyContent:"space-between",
-              cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
-            <div>
-              <span style={{ fontSize:"8px", color: data.festival!.color,
-                fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
-                {data.festival!.type === "ekadashi" ? "🕉 Ekadashi Vrat" :
-                 data.festival!.type === "festival"  ? "🪔 Festival" :
-                 data.festival!.type === "vrat"       ? "🙏 Vrat" : "🌕 Vrat"} Today
-              </span>
-              <div style={{ fontSize:"12px", fontWeight:700, color:"white",
-                fontFamily:"'Cinzel',serif", marginTop:"1px" }}>
-                {data.festival!.name}
-              </div>
-            </div>
-            <span style={{ fontSize:"11px", color:"#6b7280" }}>›</span>
-          </button>
-        )}
-
-        {/* ── Row 2: Clock dial + time display ───────────────────────────── */}
-        <div style={{ display:"flex", gap:"14px", alignItems:"center" }}>
-          {/* Dial (left) */}
-          <div style={{ width:"42%", flexShrink:0 }}>
+          {/* 1. Large Minimalist Ghati Clock Dial */}
+          <div style={{ width: "240px", height: "240px", position: "relative" }}>
             <GhatiDial decimalGhati={vt.decimalGhati} isLive={isLive} />
           </div>
 
-          {/* Time & Date (right) */}
-          <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"10px" }}>
-            {/* IST Wall Clock */}
+          {/* 2. Times Display Section */}
+          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", zIndex: 2 }}>
+            {/* Vedic Time */}
             <div>
-              <div style={{ fontSize:"9px", color:"#6b7280", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"2px" }}>
-                {PRESETS[preset].name} · IST+{tzH}
-              </div>
-              <div style={{ fontFamily:"'Cinzel',serif", fontSize:"28px", fontWeight:700,
-                color:"white", lineHeight:1, letterSpacing:"0.04em",
-                textShadow:"0 0 20px rgba(255,255,255,0.15)" }}>
-                {fmt2(hh12)}:{fmt2(mm)}<span style={{ fontSize:"18px" }}>:{fmt2(ss)}</span>
-                <span style={{ fontSize:"13px", color:"#9ca3af", marginLeft:"5px" }}>{ampm}</span>
-              </div>
-              <div style={{ fontSize:"10px", color:"#6b7280", marginTop:"3px" }}>{wallDateStr}</div>
-            </div>
-
-            <div style={{ height:"1px", background:"rgba(212,175,55,0.12)" }} />
-
-            {/* Vedic Clock */}
-            <div>
-              <div style={{ fontSize:"9px", color:"rgba(212,175,55,0.6)",
-                letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"3px" }}>
-                Vedic Sidereal Time
-              </div>
-              <div style={{ fontFamily:"'Cinzel',serif", fontSize:"22px", fontWeight:700,
-                color:"#d4af37", lineHeight:1,
-                textShadow:"0 0 12px rgba(212,175,55,0.5)" }}>
+              <span style={{ fontSize: "10px", color: "rgba(212, 175, 55, 0.6)", letterSpacing: "0.2em", textTransform: "uppercase", fontWeight: 700 }}>
+                Vaidik Samaya
+              </span>
+              <div style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: "38px",
+                fontWeight: 800,
+                color: "#d4af37",
+                textShadow: "0 0 15px rgba(212,175,55,0.5)",
+                marginTop: "4px",
+                lineHeight: 1
+              }}>
                 {fmt2(vt.ghati)} : {fmt2(vt.pala)} : {fmt2(vt.vipala)}
               </div>
-              <div style={{ fontSize:"9px", color:"rgba(212,175,55,0.45)", marginTop:"2px", letterSpacing:"0.08em" }}>
+              <div style={{ fontSize: "9px", color: "rgba(212, 175, 55, 0.45)", letterSpacing: "0.1em", marginTop: "4px" }}>
                 Ghati · Pala · Vipala
               </div>
             </div>
 
-            <div style={{ height:"1px", background:"rgba(212,175,55,0.12)" }} />
+            {/* Divider */}
+            <div style={{ width: "100px", height: "1px", background: "rgba(212,175,55,0.15)", margin: "14px auto" }} />
 
-            {/* Vedic Calendar Date */}
+            {/* Local Wall Clock */}
             <div>
-              <div style={{ fontSize:"9px", color:"rgba(138,43,226,0.7)",
-                letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"2px" }}>
-                Vedic Panchang
+              <div style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: "26px",
+                fontWeight: 700,
+                color: "white",
+                letterSpacing: "0.04em",
+                lineHeight: 1
+              }}>
+                {fmt2(hh12)}:{fmt2(mm)}<span style={{ fontSize: "18px", opacity: 0.8 }}>:{fmt2(ss)}</span>{" "}
+                <span style={{ fontSize: "14px", color: "#9ca3af", marginLeft: "4px" }}>{ampm}</span>
               </div>
-              <div style={{ fontSize:"11px", color:"#c4b5fd", fontWeight:600, lineHeight:1.4 }}>
-                {data ? `${data.vedicCalendar.vikramiSamvat} VS` : "—"}
-              </div>
-              <div style={{ fontSize:"11px", color:"#a78bfa", lineHeight:1.4 }}>
-                {data ? data.vedicCalendar.solarMonthName : "—"}
-              </div>
-              <div style={{ fontSize:"11px", color:"#8b5cf6", lineHeight:1.4 }}>
-                {data ? `${data.panchang.tithi.paksha} ${data.panchang.tithi.name}` : "—"}
+              <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "6px" }}>
+                {PRESETS[preset].name} Local Time · {wallDateStr}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── Row 3: Panchang strip ───────────────────────────────────────── */}
-        {data && (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"6px" }}>
-            {[
-              { label:"Nakshatra", value: data.panchang.nakshatra.name },
-              { label:"Yoga",      value: data.panchang.yoga.name },
-              { label:"Karana",    value: data.panchang.karana.name.split(" ")[0] },
-              { label:"Vaara",     value: data.panchang.vaara.sanskrit },
-              { label:"Lagna",     value: data.panchang.lagna.rasi.signSanskrit },
-            ].map(item => (
-              <div key={item.label} style={{ background:"rgba(0,0,0,0.4)",
-                border:"1px solid rgba(138,43,226,0.2)", borderRadius:"8px",
-                padding:"6px 4px", textAlign:"center" }}>
-                <div style={{ fontSize:"8px", color:"#52525b",
-                  textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"2px" }}>
-                  {item.label}
+          {/* 3. Minimalist Details Cards */}
+          <div style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+            marginTop: "12px",
+            zIndex: 2
+          }}>
+            {/* Vedic Tithi & Panchang Card */}
+            <div style={{
+              background: "rgba(0, 0, 0, 0.4)",
+              border: "1px solid rgba(212, 175, 55, 0.15)",
+              borderRadius: "16px",
+              padding: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px"
+            }}>
+              <div style={{ flexShrink: 0 }}>
+                {data ? <MoonPhaseSvg degreeDiff={data.panchang.tithi.degreeDiff} /> : (
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+                )}
+              </div>
+              <div>
+                <span style={{ fontSize: "8px", color: "rgba(138,43,226,0.7)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
+                  Current Tithi
+                </span>
+                <div style={{
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  color: "#c4b5fd",
+                  fontFamily: "'Cinzel', serif",
+                  marginTop: "2px"
+                }}>
+                  {data ? data.panchang.tithi.name : "Loading..."}
                 </div>
-                <div style={{ fontSize:"10px", color:"#c4b5fd", fontWeight:600,
-                  fontFamily:"'Cinzel',serif", lineHeight:1.2 }}>
-                  {item.value}
+                <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>
+                  {data ? `${data.panchang.tithi.paksha} Paksha` : "—"}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
 
-        {/* ── Row 4: 9 Planets 3×3 grid ──────────────────────────────────── */}
-        <div>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" }}>
-            <span style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase", letterSpacing:"0.12em", fontWeight:700 }}>
-              ✦ Navagraha — Sidereal Positions
-            </span>
-            <button onClick={() => setShowPlanetModal(true)}
-              style={{ fontSize:"9px", color:"#a78bfa", background:"none", border:"none",
-                cursor:"pointer", textDecoration:"underline", padding:0 }}>
-              Sub-Planets ›
-            </button>
+            {/* Upcoming Details Card */}
+            <div style={{
+              background: "rgba(0, 0, 0, 0.4)",
+              border: "1px solid rgba(212, 175, 55, 0.15)",
+              borderRadius: "16px",
+              padding: "16px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "4px"
+            }}>
+              <span style={{ fontSize: "8px", color: "#6b7280", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "4px", fontWeight: 700 }}>
+                Upcoming Transitions
+              </span>
+              {data ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {getUpcomingEvents().slice(0, 2).map((ev, index) => {
+                    const timeDiffMs = new Date(ev.time).getTime() - wallTime.getTime();
+                    const hours = Math.floor(timeDiffMs / (3600 * 1000));
+                    const minutes = Math.floor((timeDiffMs % (3600 * 1000)) / (60 * 1000));
+                    const diffStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+                    return (
+                      <div key={index} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "#e4e4e7", fontWeight: 500 }}>
+                          {ev.type === "sunrise" ? "🌅 Sunrise" : ev.type === "sunset" ? "🌇 Sunset" : ev.name}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "#d4af37", fontFamily: "monospace" }}>
+                          in {diffStr}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {getUpcomingEvents().length === 0 && (
+                    <span style={{ fontSize: "11px", color: "#52525b" }}>No upcoming events</span>
+                  )}
+                </div>
+              ) : (
+                <span style={{ fontSize: "11px", color: "#52525b" }}>Loading...</span>
+              )}
+            </div>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"6px" }}>
-            {ninePlanets.map((p: any) => {
-              const col = PLANET_COLOR[p.name] || "#ffffff";
-              return (
-                <div key={p.name} style={{
-                  background:"rgba(0,0,0,0.45)",
-                  border:`1px solid ${col}22`,
-                  borderRadius:"10px", padding:"8px 6px",
-                  display:"flex", alignItems:"center", gap:"7px",
-                }}>
-                  <span style={{ fontSize:"18px", lineHeight:1, filter:`drop-shadow(0 0 4px ${col})` }}>
-                    {PLANET_SYMBOL[p.name]}
-                  </span>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:"10px", fontWeight:700, color:col,
-                      fontFamily:"'Cinzel',serif", whiteSpace:"nowrap", overflow:"hidden",
-                      textOverflow:"ellipsis" }}>
-                      {p.sanskrit}
-                    </div>
-                    <div style={{ fontSize:"9px", color:"#9ca3af", marginTop:"1px" }}>
-                      {p.rasi.degreeInSign.toFixed(1)}° {p.rasi.signSanskrit}
-                    </div>
-                    {p.isRetrograde && (
-                      <span style={{ fontSize:"7px", color:"#f87171", fontWeight:700,
-                        background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.3)",
-                        borderRadius:"4px", padding:"0 3px" }}>℞</span>
-                    )}
+        </div>
+      )}
+
+      {/* ── APP VIEW (DASHBOARD) ────────────────────────────────────────── */}
+      {activeView === "app" && (
+        <>
+          {/* ── 3 Prominent Muhurats strip ────────────────────────────────────── */}
+          {data && (
+            <div style={{ width:"100%", maxWidth:"800px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr",
+              gap:"8px", marginBottom:"12px" }}>
+              {data.prominentMuhurats.map(mh => (
+                <div key={mh.name}
+                  style={{ background: mh.isActive
+                    ? (mh.type==="auspicious" ? "rgba(212,175,55,0.15)" : "rgba(239,68,68,0.15)")
+                    : "rgba(13,11,22,0.8)",
+                    border: `1px solid ${mh.isActive ? (mh.type==="auspicious" ? "rgba(212,175,55,0.6)" : "rgba(239,68,68,0.6)") : "rgba(255,255,255,0.07)"}`,
+                    borderRadius:"10px", padding:"8px", position:"relative", overflow:"hidden" }}>
+                  {mh.isActive && (
+                    <div style={{ position:"absolute", top:4, right:6,
+                      width:6, height:6, borderRadius:"50%",
+                      background: mh.type==="auspicious" ? "#d4af37" : "#ef4444",
+                      boxShadow:`0 0 6px ${mh.type==="auspicious" ? "#d4af37" : "#ef4444"}`,
+                      animation:"pulse 2s infinite" }} />
+                  )}
+                  <div style={{ fontSize:"8px", color: mh.type==="auspicious" ? "#d4af37" : "#f87171",
+                    fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"2px" }}>
+                    {mh.type==="auspicious" ? "✦" : "⚠"} {mh.name}
+                  </div>
+                  <div style={{ fontSize:"8px", color:"#a1a1aa", lineHeight:1.3 }}>
+                    {fmtTimeRange(mh.startTime, mh.endTime, tzH)}
+                  </div>
+                  <div style={{ marginTop:"4px", fontSize:"8px",
+                    color: mh.isActive ? (mh.type==="auspicious" ? "#d4af37" : "#ef4444") : "#52525b",
+                    fontWeight:600 }}>
+                    {mh.isActive ? (mh.type==="auspicious" ? "ACTIVE ✓" : "ACTIVE — AVOID") : "Inactive"}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Row 5: Muhurat score bar + Category button ──────────────────── */}
-        {muhurat && (
-          <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
-            {/* Score ring */}
-            <svg width="56" height="56" viewBox="0 0 56 56" style={{ flexShrink:0 }}>
-              <circle cx="28" cy="28" r="23" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
-              <circle cx="28" cy="28" r="23" fill="none"
-                stroke={mColor} strokeWidth="6"
-                strokeDasharray={`${2*Math.PI*23}`}
-                strokeDashoffset={`${2*Math.PI*23*(1-mScore/100)}`}
-                strokeLinecap="round"
-                transform="rotate(-90 28 28)"
-                style={{ transition:"stroke-dashoffset 1s ease", filter:`drop-shadow(0 0 4px ${mColor})` }} />
-              <text x="28" y="28" textAnchor="middle" dominantBaseline="central"
-                fontSize="10" fontWeight="700" fill={mColor} fontFamily="'Cinzel',serif">
-                {mScore}%
-              </text>
-            </svg>
-
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase",
-                letterSpacing:"0.1em", marginBottom:"3px" }}>
-                Muhurat — {ROLES.find(r=>r.id===role)?.label}
-              </div>
-              <div style={{ fontSize:"12px", fontWeight:700, color:mColor, fontFamily:"'Cinzel',serif" }}>
-                {muhurat.rating}
-              </div>
-              <div style={{ marginTop:"5px", height:"4px", borderRadius:"2px",
-                background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${mScore}%`,
-                  background:`linear-gradient(90deg,${mColor}88,${mColor})`,
-                  borderRadius:"2px", transition:"width 1s ease" }} />
-              </div>
+              ))}
             </div>
+          )}
 
-            <button onClick={() => setShowMuhuratModal(true)}
-              style={{ background:"rgba(212,175,55,0.1)", border:"1px solid rgba(212,175,55,0.3)",
-                borderRadius:"10px", padding:"8px 12px", color:"#d4af37",
-                fontSize:"10px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap",
-                letterSpacing:"0.08em" }}>
-              Category<br/>Muhurats ›
-            </button>
-          </div>
-        )}
+          {/* ── SQUARE CLOCK BODY ────────────────────────────────────────────── */}
+          <div style={{
+            width:"100%", maxWidth:"800px", aspectRatio:"1/1",
+            background:"linear-gradient(145deg,#131020 0%,#0a0817 50%,#0f0d1a 100%)",
+            border:"2px solid rgba(212,175,55,0.25)",
+            borderRadius:"24px",
+            boxShadow:"0 0 0 1px rgba(212,175,55,0.08), 0 0 40px rgba(138,43,226,0.15), inset 0 1px 0 rgba(212,175,55,0.1)",
+            padding:"20px",
+            display:"flex", flexDirection:"column", gap:"14px",
+            position:"relative", overflow:"hidden",
+          }}>
+            {/* ambient glows */}
+            <div style={{ position:"absolute", top:-60, left:-60, width:200, height:200,
+              borderRadius:"50%", background:"radial-gradient(circle,rgba(138,43,226,0.12),transparent 70%)", pointerEvents:"none" }} />
+            <div style={{ position:"absolute", bottom:-40, right:-40, width:180, height:180,
+              borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,0.08),transparent 70%)", pointerEvents:"none" }} />
 
-        {/* ── Row 6: 24-h forecast mini-bar ──────────────────────────────── */}
-        {timeline.length > 0 && (
-          <div>
-            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"6px" }}>
-              <span style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase", letterSpacing:"0.1em" }}>
-                24-Hour Forecast
-              </span>
-              <button onClick={() => setShowTimelineModal(true)}
-                style={{ fontSize:"9px", color:"#a78bfa", background:"none", border:"none",
-                  cursor:"pointer", textDecoration:"underline", padding:0 }}>
-                View All ›
+            {loading && (
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
+                background:"rgba(6,5,10,0.7)", borderRadius:"22px", zIndex:10 }}>
+                <span style={{ color:"#d4af37", fontSize:"13px", letterSpacing:"0.15em" }}>Calculating…</span>
+              </div>
+            )}
+
+            {/* ── Row 1: Festival banner ──────────────────────────────────────── */}
+            {data?.festival && (
+              <button onClick={() => setShowFestivalModal(true)}
+                style={{ background:`linear-gradient(90deg,${data.festival!.color}18,transparent)`,
+                  border:`1px solid ${data.festival!.color}40`,
+                  borderRadius:"10px", padding:"7px 12px",
+                  display:"flex", alignItems:"center", justifyContent:"space-between",
+                  cursor:"pointer", textAlign:"left", transition:"all 0.2s" }}>
+                <div>
+                  <span style={{ fontSize:"8px", color: data.festival!.color,
+                    fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
+                    {data.festival!.type === "ekadashi" ? "🕉 Ekadashi Vrat" :
+                     data.festival!.type === "festival"  ? "🪔 Festival" :
+                     data.festival!.type === "vrat"       ? "🙏 Vrat" : "🌕 Vrat"} Today
+                  </span>
+                  <div style={{ fontSize:"12px", fontWeight:700, color:"white",
+                    fontFamily:"'Cinzel',serif", marginTop:"1px" }}>
+                    {data.festival!.name}
+                  </div>
+                </div>
+                <span style={{ fontSize:"11px", color:"#6b7280" }}>›</span>
               </button>
+            )}
+
+            {/* ── Row 2: Clock dial + time display ───────────────────────────── */}
+            <div style={{ display:"flex", gap:"14px", alignItems:"center" }}>
+              {/* Dial (left) */}
+              <div style={{ width:"42%", flexShrink:0 }}>
+                <GhatiDial decimalGhati={vt.decimalGhati} isLive={isLive} />
+              </div>
+
+              {/* Time & Date (right) */}
+              <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"10px" }}>
+                {/* IST Wall Clock */}
+                <div>
+                  <div style={{ fontSize:"9px", color:"#6b7280", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"2px" }}>
+                    {PRESETS[preset].name} · IST+{tzH}
+                  </div>
+                  <div style={{ fontFamily:"'Cinzel',serif", fontSize:"28px", fontWeight:700,
+                    color:"white", lineHeight:1, letterSpacing:"0.04em",
+                    textShadow:"0 0 20px rgba(255,255,255,0.15)" }}>
+                    {fmt2(hh12)}:{fmt2(mm)}<span style={{ fontSize:"18px" }}>:{fmt2(ss)}</span>
+                    <span style={{ fontSize:"13px", color:"#9ca3af", marginLeft:"5px" }}>{ampm}</span>
+                  </div>
+                  <div style={{ fontSize:"10px", color:"#6b7280", marginTop:"3px" }}>{wallDateStr}</div>
+                </div>
+
+                <div style={{ height:"1px", background:"rgba(212,175,55,0.12)" }} />
+
+                {/* Vedic Clock */}
+                <div>
+                  <div style={{ fontSize:"9px", color:"rgba(212,175,55,0.6)",
+                    letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"3px" }}>
+                    Vedic Sidereal Time
+                  </div>
+                  <div style={{ fontFamily:"'Cinzel',serif", fontSize:"22px", fontWeight:700,
+                    color:"#d4af37", lineHeight:1,
+                    textShadow:"0 0 12px rgba(212,175,55,0.5)" }}>
+                    {fmt2(vt.ghati)} : {fmt2(vt.pala)} : {fmt2(vt.vipala)}
+                  </div>
+                  <div style={{ fontSize:"9px", color:"rgba(212,175,55,0.45)", marginTop:"2px", letterSpacing:"0.08em" }}>
+                    Ghati · Pala · Vipala
+                  </div>
+                </div>
+
+                <div style={{ height:"1px", background:"rgba(212,175,55,0.12)" }} />
+
+                {/* Vedic Calendar Date */}
+                <div>
+                  <div style={{ fontSize:"9px", color:"rgba(138,43,226,0.7)",
+                    letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:"2px" }}>
+                    Vedic Panchang
+                  </div>
+                  <div style={{ fontSize:"11px", color:"#c4b5fd", fontWeight:600, lineHeight:1.4 }}>
+                    {data ? `${data.vedicCalendar.vikramiSamvat} VS` : "—"}
+                  </div>
+                  <div style={{ fontSize:"11px", color:"#a78bfa", lineHeight:1.4 }}>
+                    {data ? data.vedicCalendar.solarMonthName : "—"}
+                  </div>
+                  <div style={{ fontSize:"11px", color:"#8b5cf6", lineHeight:1.4 }}>
+                    {data ? `${data.panchang.tithi.paksha} ${data.panchang.tithi.name}` : "—"}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style={{ display:"flex", gap:"2px", height:"28px", alignItems:"flex-end",
-              background:"rgba(0,0,0,0.3)", borderRadius:"8px", padding:"4px 6px",
-              border:"1px solid rgba(255,255,255,0.06)" }}>
-              {timeline.map((h:any, i:number) => {
-                const c = scoreColor(h.score);
-                return (
-                  <div key={i} title={`${h.score}% — ${new Date(h.time).getUTCHours()}:00`}
-                    style={{ flex:1, background:c, borderRadius:"2px",
-                      height:`${Math.max(15,(h.score/100)*100)}%`,
-                      opacity:0.75, cursor:"pointer", transition:"opacity 0.2s" }}
-                    onClick={() => { setIsLive(false); setTravelTime(new Date(new Date(h.time).getTime()-new Date(h.time).getTimezoneOffset()*60000).toISOString().slice(0,16)); }} />
-                );
-              })}
+
+            {/* ── Row 3: Panchang strip ───────────────────────────────────────── */}
+            {data && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:"6px" }}>
+                {[
+                  { label:"Nakshatra", value: data.panchang.nakshatra.name },
+                  { label:"Yoga",      value: data.panchang.yoga.name },
+                  { label:"Karana",    value: data.panchang.karana.name.split(" ")[0] },
+                  { label:"Vaara",     value: data.panchang.vaara.sanskrit },
+                  { label:"Lagna",     value: data.panchang.lagna.rasi.signSanskrit },
+                ].map(item => (
+                  <div key={item.label} style={{ background:"rgba(0,0,0,0.4)",
+                    border:"1px solid rgba(138,43,226,0.2)", borderRadius:"8px",
+                    padding:"6px 4px", textAlign:"center" }}>
+                    <div style={{ fontSize:"8px", color:"#52525b",
+                      textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"2px" }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize:"10px", color:"#c4b5fd", fontWeight:600,
+                      fontFamily:"'Cinzel',serif", lineHeight:1.2 }}>
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Row 4: 9 Planets 3×3 grid ──────────────────────────────────── */}
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"8px" }}>
+                <span style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase", letterSpacing:"0.12em", fontWeight:700 }}>
+                  ✦ Navagraha — Sidereal Positions
+                </span>
+                <button onClick={() => setShowPlanetModal(true)}
+                  style={{ fontSize:"9px", color:"#a78bfa", background:"none", border:"none",
+                    cursor:"pointer", textDecoration:"underline", padding:0 }}>
+                  Sub-Planets ›
+                </button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"6px" }}>
+                {ninePlanets.map((p: any) => {
+                  const col = PLANET_COLOR[p.name] || "#ffffff";
+                  return (
+                    <div key={p.name} style={{
+                      background:"rgba(0,0,0,0.45)",
+                      border:`1px solid ${col}22`,
+                      borderRadius:"10px", padding:"8px 6px",
+                      display:"flex", alignItems:"center", gap:"7px",
+                    }}>
+                      <span style={{ fontSize:"18px", lineHeight:1, filter:`drop-shadow(0 0 4px ${col})` }}>
+                        {PLANET_SYMBOL[p.name]}
+                      </span>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:"10px", fontWeight:700, color:col,
+                          fontFamily:"'Cinzel',serif", whiteSpace:"nowrap", overflow:"hidden",
+                          textOverflow:"ellipsis" }}>
+                          {p.sanskrit}
+                        </div>
+                        <div style={{ fontSize:"9px", color:"#9ca3af", marginTop:"1px" }}>
+                          {p.rasi.degreeInSign.toFixed(1)}° {p.rasi.signSanskrit}
+                        </div>
+                        {p.isRetrograde && (
+                          <span style={{ fontSize:"7px", color:"#f87171", fontWeight:700,
+                            background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.3)",
+                            borderRadius:"4px", padding:"0 3px" }}>℞</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* ── Row 5: Muhurat score bar + Category button ──────────────────── */}
+            {muhurat && (
+              <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
+                {/* Score ring */}
+                <svg width="56" height="56" viewBox="0 0 56 56" style={{ flexShrink:0 }}>
+                  <circle cx="28" cy="28" r="23" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
+                  <circle cx="28" cy="28" r="23" fill="none"
+                    stroke={mColor} strokeWidth="6"
+                    strokeDasharray={`${2*Math.PI*23}`}
+                    strokeDashoffset={`${2*Math.PI*23*(1-mScore/100)}`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 28 28)"
+                    style={{ transition:"stroke-dashoffset 1s ease", filter:`drop-shadow(0 0 4px ${mColor})` }} />
+                  <text x="28" y="28" textAnchor="middle" dominantBaseline="central"
+                    fontSize="10" fontWeight="700" fill={mColor} fontFamily="'Cinzel',serif">
+                    {mScore}%
+                  </text>
+                </svg>
+
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase",
+                    letterSpacing:"0.1em", marginBottom:"3px" }}>
+                    Muhurat — {ROLES.find(r=>r.id===role)?.label}
+                  </div>
+                  <div style={{ fontSize:"12px", fontWeight:700, color:mColor, fontFamily:"'Cinzel',serif" }}>
+                    {muhurat.rating}
+                  </div>
+                  <div style={{ marginTop:"5px", height:"4px", borderRadius:"2px",
+                    background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:`${mScore}%`,
+                      background:`linear-gradient(90deg,${mColor}88,${mColor})`,
+                      borderRadius:"2px", transition:"width 1s ease" }} />
+                  </div>
+                </div>
+
+                <button onClick={() => setShowMuhuratModal(true)}
+                  style={{ background:"rgba(212,175,55,0.1)", border:"1px solid rgba(212,175,55,0.3)",
+                    borderRadius:"10px", padding:"8px 12px", color:"#d4af37",
+                    fontSize:"10px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap",
+                    letterSpacing:"0.08em" }}>
+                  Category<br/>Muhurats ›
+                </button>
+              </div>
+            )}
+
+            {/* ── Row 6: 24-h forecast mini-bar ──────────────────────────────── */}
+            {timeline.length > 0 && (
+              <div>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"6px" }}>
+                  <span style={{ fontSize:"9px", color:"#6b7280", textTransform:"uppercase", letterSpacing:"0.1em" }}>
+                    24-Hour Forecast
+                  </span>
+                  <button onClick={() => setShowTimelineModal(true)}
+                    style={{ fontSize:"9px", color:"#a78bfa", background:"none", border:"none",
+                      cursor:"pointer", textDecoration:"underline", padding:0 }}>
+                    View All ›
+                  </button>
+                </div>
+                <div style={{ display:"flex", gap:"2px", height:"28px", alignItems:"flex-end",
+                  background:"rgba(0,0,0,0.3)", borderRadius:"8px", padding:"4px 6px",
+                  border:"1px solid rgba(255,255,255,0.06)" }}>
+                  {timeline.map((h:any, i:number) => {
+                    const c = scoreColor(h.score);
+                    return (
+                      <div key={i} title={`${h.score}% — ${new Date(h.time).getUTCHours()}:00`}
+                        style={{ flex:1, background:c, borderRadius:"2px",
+                          height:`${Math.max(15,(h.score/100)*100)}%`,
+                          opacity:0.75, cursor:"pointer", transition:"opacity 0.2s" }}
+                        onClick={() => { setIsLive(false); setTravelTime(new Date(new Date(h.time).getTime()-new Date(h.time).getTimezoneOffset()*60000).toISOString().slice(0,16)); }} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────────────
            MODALS
