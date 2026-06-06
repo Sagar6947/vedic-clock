@@ -279,6 +279,19 @@ export interface VedicTimeData {
   decimalGhati: number;
   elapsedSeconds: number;
   totalDaySeconds: number;
+
+  simple: {
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
+
+  advance: {
+    isDay: boolean;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  };
 }
 
 export interface PraharData {
