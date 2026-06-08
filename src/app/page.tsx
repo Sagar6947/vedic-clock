@@ -204,60 +204,16 @@ function ClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simple, wal
   wallTime: Date;
 }) {
   const [mounted, setMounted] = React.useState(false);
-  const [isMuhurtaView, setIsMuhurtaView] = React.useState(true); // Default to 30-hour system
-  const [hoveredGraha, setHoveredGraha] = React.useState<any>(null);
-  const [activeRashiDetail, setActiveRashiDetail] = React.useState<number | null>(null);
 
   React.useEffect(() => { setMounted(true); }, []);
-
-  const angle = (decimalGhati % 60) * 6; // Needle rotating angle (No offset subtraction because drawn pointing straight up)
-
-  const GRAHAS_CONFIG: Record<string, { symbol: string, color: string }> = React.useMemo(() => ({
-    "Venus": { symbol: "♀", color: "#f8fafc" },      // pearl-white
-    "Mercury": { symbol: "☿", color: "#4ade80" },    // green
-    "Mars": { symbol: "♂", color: "#f87171" },       // red
-    "Jupiter": { symbol: "♃", color: "#fbbf24" },    // gold-yellow
-    "Saturn": { symbol: "♄", color: "#818cf8" }      // indigo/steel-blue
-  }), []);
-
-  const grahas = React.useMemo(() => {
-    if (!data?.planets) return [];
-    const selected = data.planets.filter((p: any) => Object.keys(GRAHAS_CONFIG).includes(p.name));
-
-    const mapped = selected.map((p: any) => {
-      const angleDeg = p.longitude - 90;
-      const angleRad = (angleDeg * Math.PI) / 180;
-      return {
-        ...p,
-        angleDeg,
-        angleRad,
-        config: GRAHAS_CONFIG[p.name],
-        radius: 153
-      };
-    });
-
-    mapped.sort((a: any, b: any) => a.longitude - b.longitude);
-    for (let i = 0; i < mapped.length; i++) {
-      for (let j = i + 1; j < mapped.length; j++) {
-        const diff = Math.abs(mapped[i].longitude - mapped[j].longitude);
-        const shortestDiff = Math.min(diff, 360 - diff);
-        if (shortestDiff < 5.5) {
-          if (mapped[i].radius === 153) mapped[j].radius = 161;
-          else if (mapped[i].radius === 161) mapped[j].radius = 145;
-          else mapped[j].radius = 153;
-        }
-      }
-    }
-    return mapped;
-  }, [data?.planets, GRAHAS_CONFIG]);
 
   if (!mounted || !data) {
     return (
       <div className="relative select-none" style={{ width: "100%", aspectRatio: "1" }}>
-        <svg viewBox="0 0 400 400" className="w-full h-full">
-          <circle cx="200" cy="200" r="196" fill="none" stroke="rgba(212,175,55,0.18)" strokeWidth="3" />
-          <circle cx="200" cy="200" r="188" fill="rgba(6,5,10,0.92)" stroke="rgba(138,43,226,0.2)" strokeWidth="1" />
-          <text x="200" y="200" textAnchor="middle" fill="#d4af37" fontSize="16" fontFamily="'Cinzel',serif">
+        <svg viewBox="0 0 1000 1000" className="w-full h-full">
+          <circle cx="500" cy="500" r="490" fill="none" stroke="rgba(212,175,55,0.18)" strokeWidth="3" />
+          <circle cx="500" cy="500" r="480" fill="rgba(6,5,10,0.92)" stroke="rgba(138,43,226,0.2)" strokeWidth="1" />
+          <text x="500" y="500" textAnchor="middle" fill="#d4af37" fontSize="24" fontFamily="'Cinzel',serif">
             CALCULATING...
           </text>
         </svg>
@@ -280,464 +236,243 @@ function ClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simple, wal
     { symbol: "♓", sanskrit: "मीन", name: "Meena" },
   ];
 
-  const NAKSHATRAS_LIST = [
-    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra", "Punarvasu",
-    "Pushya", "Ashlesha", "Magha", "Purva Phalguni", "Uttara Phalguni", "Hasta",
-    "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha", "Mula", "Purva Ashadha",
-    "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", "Purva Bhadrapada",
-    "Uttara Bhadrapada", "Revati"
-  ];
-
-
-
-  const currentRashiIndex = panchang ? panchang.suryaRashi.index : 0;
-  const currentNakshatraIndex = panchang ? panchang.chandraRashi.index : 0; // fallback usage
-
   const fmt2 = (num: number) => String(num).padStart(2, "0");
-  const ghatiVal = Math.floor(decimalGhati);
-  const palaVal = Math.floor((decimalGhati - ghatiVal) * 60);
-  const vipalaVal = Math.floor((((decimalGhati - ghatiVal) * 60) - palaVal) * 60);
-  const samayStr = (isMuhurtaView && simple)
-    ? `${fmt2(simple.hours)} : ${fmt2(simple.minutes)} : ${fmt2(simple.seconds)}`
-    : `${fmt2(ghatiVal)} : ${fmt2(palaVal)} : ${fmt2(vipalaVal)}`;
 
-  const activeMuhurat = data.prominentMuhurats?.find((m: any) => m.isActive);
-  const activeMuhuratName = activeMuhurat ? activeMuhurat.name : "Regular Time";
-  const isAuspicious = activeMuhurat ? activeMuhurat.type === "auspicious" : true;
-
-  const ticks = Array.from({ length: 60 }, (_, i) => i);
+  const legibilityStyle = { paintOrder: "stroke", stroke: "rgba(0,0,0,0.85)", strokeWidth: "6px" };
 
   return (
     <div className="relative select-none" style={{ width: "100%", aspectRatio: "1" }}>
       <style>{`
         @keyframes pulseKashtha {
-          0% { opacity: 1; text-shadow: 0 0 8px rgba(212,175,55,0.8); }
-          50% { opacity: 0.3; text-shadow: 0 0 2px rgba(212,175,55,0.3); }
-          100% { opacity: 1; text-shadow: 0 0 8px rgba(212,175,55,0.8); }
+          0% { opacity: 1; text-shadow: 0 0 15px rgba(212,175,55,0.9); }
+          50% { opacity: 0.4; text-shadow: 0 0 5px rgba(212,175,55,0.4); }
+          100% { opacity: 1; text-shadow: 0 0 15px rgba(212,175,55,0.9); }
+        }
+        @keyframes spinSlow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes spinSlowRev {
+          from { transform: rotate(360deg); }
+          to { transform: rotate(0deg); }
         }
       `}</style>
-      <svg viewBox="0 0 400 400" className="w-full h-full">
+      <svg viewBox="0 0 1000 1000" className="w-full h-full">
         <defs>
           <clipPath id="clockTowerClip">
-            <circle cx="200" cy="200" r="188" />
+            <circle cx="500" cy="500" r="490" />
           </clipPath>
           <radialGradient id="dialGlow" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="rgba(138,43,226,0.18)" />
             <stop offset="100%" stopColor="rgba(6,5,10,0)" />
           </radialGradient>
+          <path id="topTitleArch" d="M 150 250 A 430 430 0 0 1 850 250" fill="none" />
         </defs>
 
-        {/* Outer Bezel rings */}
-        <circle cx="200" cy="200" r="196" fill="none" stroke="rgba(212,175,55,0.22)" strokeWidth="4" />
-        <circle cx="200" cy="200" r="188" fill="rgba(6,5,10,0.96)" stroke="rgba(138,43,226,0.25)" strokeWidth="1.5" />
-
-        {/* Ambient background glow */}
-        <circle cx="200" cy="200" r="188" fill="url(#dialGlow)" />
-
-        {/* Watermarked background image */}
+        {/* Background Setup */}
+        <circle cx="500" cy="500" r="490" fill="#0B0C10" />
         <image
-          href="/vikramaditya.png"
-          x="12"
-          y="12"
-          width="376"
-          height="376"
+          href="/ancient_mandala_bg.png"
+          x="0"
+          y="0"
+          width="1000"
+          height="1000"
           clipPath="url(#clockTowerClip)"
-          opacity="0.14"
-          style={{ pointerEvents: "none" }}
+          opacity="0.85"
+          style={{ pointerEvents: "none", filter: "contrast(1.2) brightness(0.9)" }}
         />
+        <circle cx="500" cy="500" r="490" fill="rgba(0,0,0,0.4)" style={{ pointerEvents: "none" }} />
+        
+        {/* Outer Glowing Bezel */}
+        <circle cx="500" cy="500" r="495" fill="none" stroke="rgba(212,175,55,0.4)" strokeWidth="10" style={{ filter: "drop-shadow(0 0 15px rgba(212,175,55,0.5))" }} />
+        <circle cx="500" cy="500" r="485" fill="none" stroke="rgba(212,175,55,0.8)" strokeWidth="4" />
+        <circle cx="500" cy="500" r="475" fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="2" strokeDasharray="10, 5" />
 
-        {/* 1. Rashi Ring (Radius ~168) */}
-        {RASHIS_LIST.map((r, i) => {
-          const angleDeg = i * 30 - 90;
-          const angleRad = (angleDeg * Math.PI) / 180;
-          const rx = 200 + 168 * Math.cos(angleRad);
-          const ry = 200 + 168 * Math.sin(angleRad);
-          const isActive = i === currentRashiIndex;
-
-          return (
-            <g
-              key={r.name}
-              onClick={() => setActiveRashiDetail(activeRashiDetail === i ? null : i)}
-              style={{ cursor: "pointer", pointerEvents: "all" }}
-            >
-              {isActive && (
-                <>
-                  <circle cx={rx} cy={ry} r="15" fill="rgba(212,175,55,0.07)" stroke="rgba(212,175,55,0.2)" strokeWidth="0.5" />
-                  <circle cx={rx} cy={ry} r="2.5" fill="#d4af37" style={{ filter: "drop-shadow(0 0 3px #d4af37)" }} />
-                </>
-              )}
-              <text
-                x={rx}
-                y={ry + (isActive ? -5 : -1)}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill={isActive ? "#d4af37" : "rgba(255,255,255,0.3)"}
-                fontSize={isActive ? "10" : "8"}
-                fontWeight={isActive ? "800" : "500"}
-                fontFamily="'Outfit', sans-serif"
-              >
-                {r.symbol}
-              </text>
-              <text
-                x={rx}
-                y={ry + 7}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill={isActive ? "#d4af37" : "rgba(255,255,255,0.16)"}
-                fontSize="5.5"
-                fontWeight={isActive ? "bold" : "normal"}
-                fontFamily="'Cinzel', serif"
-              >
-                {r.sanskrit}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Outer Ring separator */}
-        <circle cx="200" cy="200" r="154" fill="none" stroke="rgba(212,175,55,0.12)" strokeWidth="1" strokeDasharray="3,3" />
-
-        {/* 1.5 NEW: Graha Ring (Radius ~153 staggered) */}
-        {grahas.map((p: any) => {
-          const gx = 200 + p.radius * Math.cos(p.angleRad);
-          const gy = 200 + p.radius * Math.sin(p.angleRad);
-          const rx = 200 + 168 * Math.cos(p.angleRad); // Line out to the Rashi divider
-          const ry = 200 + 168 * Math.sin(p.angleRad);
-          const col = p.config.color;
-          const isHovered = hoveredGraha?.name === p.name;
-
-          return (
-            <g
-              key={p.name}
-              onMouseEnter={() => setHoveredGraha(p)}
-              onMouseLeave={() => setHoveredGraha(null)}
-              style={{ cursor: "pointer", pointerEvents: "all" }}
-            >
-              {/* Radial tick to Exact Degree */}
-              <line x1={gx} y1={gy} x2={rx} y2={ry} stroke={col} strokeWidth="0.5" strokeOpacity="0.4" />
-
-              {/* Glowing Pip */}
-              <circle cx={gx} cy={gy} r={isHovered ? "9" : "7"} fill="rgba(6,5,10,0.85)" stroke={col} strokeWidth="1" style={{ filter: `drop-shadow(0 0 ${isHovered ? '6px' : '3px'} ${col})` }} />
-
-              {/* Planet Symbol */}
-              <text x={gx} y={gy} textAnchor="middle" dominantBaseline="central" fill={col} fontSize={isHovered ? "11" : "9"} fontWeight="bold">
-                {p.config.symbol}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* 2. Nakshatra Ring (Radius ~144) */}
-        {NAKSHATRAS_LIST.map((name, i) => {
-          const angleDeg = i * (360 / 27) - 90;
-          const angleRad = (angleDeg * Math.PI) / 180;
-          const nx = 200 + 144 * Math.cos(angleRad);
-          const ny = 200 + 144 * Math.sin(angleRad);
-          const isActive = i === currentNakshatraIndex;
-
-          return (
-            <g key={name}>
-              {isActive ? (
-                <text
-                  x={nx}
-                  y={ny}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill="#d4af37"
-                  fontSize="12"
-                  fontWeight="bold"
-                  style={{ filter: "drop-shadow(0 0 5px #d4af37)" }}
-                >
-                  ✦
-                </text>
-              ) : (
-                <circle cx={nx} cy={ny} r="1.5" fill="rgba(212,175,55,0.2)" />
-              )}
-            </g>
-          );
-        })}
-
-        {/* Middle Ring separator */}
-        <circle cx="200" cy="200" r="134" fill="none" stroke="rgba(138,43,226,0.12)" strokeWidth="1" />
-
-        {/* 3. Ghati Ticks & Numbers (Radius ~120 to 127) */}
-        {ticks.map(i => {
-          const ang = (i * 6 - 90) * Math.PI / 180;
-          const isMajor = i % 5 === 0;
-          const r1 = isMajor ? 116 : 121, r2 = 127;
-          return (
-            <line key={i}
-              x1={200 + r1 * Math.cos(ang)} y1={200 + r1 * Math.sin(ang)}
-              x2={200 + r2 * Math.cos(ang)} y2={200 + r2 * Math.sin(ang)}
-              stroke={isMajor ? "rgba(212,175,55,0.65)" : "rgba(212,175,55,0.16)"}
-              strokeWidth={isMajor ? 1.5 : 0.8}
-            />
-          );
-        })}
-
-        {/* Ghati numerals at 0,10,20,30,40,50 */}
-        {[0, 10, 20, 30, 40, 50].map(i => {
-          const ang = (i * 6 - 90) * Math.PI / 180;
-          const r = 106;
-          return (
-            <text key={i} x={200 + r * Math.cos(ang)} y={200 + r * Math.sin(ang)}
-              textAnchor="middle" dominantBaseline="central"
-              fill="rgba(212,175,55,0.5)" fontSize="9.5" fontFamily="'Cinzel',serif" fontWeight="bold">
-              {i}
-            </text>
-          );
-        })}
-
-        {/* 4. Active Progress Arc (Radius ~112) */}
-        <circle cx="200" cy="200" r="112" fill="none" stroke="rgba(212,175,55,0.05)" strokeWidth="4" />
-        {(() => {
-          const pct = (decimalGhati % 60) / 60;
-          const r = 112, circ = 2 * Math.PI * r;
-          return (
-            <circle cx="200" cy="200" r={r} fill="none"
-              stroke="#d4af37" strokeWidth="2.5"
-              strokeDasharray={`${pct * circ} ${circ}`}
-              strokeLinecap="round"
-              transform="rotate(-90 200 200)"
-              style={{ filter: "drop-shadow(0 0 3.5px rgba(212,175,55,0.45))" }}
-            />
-          );
-        })()}
-
-
-
-        {/* ── CENTRAL DIGITAL DATA ── */}
-
-        {/* Top-left: IST civil time */}
+        {/* Top Corners: Gregorian Time and Date */}
         {wallTime && (
-          <text x="70" y="70" fill="white" fontSize="10" fontFamily="'Outfit',sans-serif" fontWeight="bold">
-            {fmt2(wallTime.getHours() % 12 || 12)}:{fmt2(wallTime.getMinutes())} {wallTime.getHours() >= 12 ? "PM" : "AM"}
-          </text>
-        )}
-
-        {/* Top-right: Gregorian date */}
-        {wallTime && (
-          <text x="330" y="70" fill="white" fontSize="9" fontFamily="'Outfit',sans-serif" fontWeight="bold" textAnchor="end">
-            {wallTime.getDate()} {["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"][wallTime.getMonth()]} {wallTime.getFullYear()}
-          </text>
-        )}
-
-        {panchang && (
           <>
-            {/* Top-center: Surya Rashi */}
-            <g transform="translate(200, 80)">
-              <text y="-5" textAnchor="middle" fill="#d4af37" fontSize="16" fontFamily="'Cinzel',serif" fontWeight="bold">
-                {RASHIS_LIST[panchang.suryaRashi.index]?.symbol}
-              </text>
-              <text y="8" textAnchor="middle" fill="white" fontSize="10" fontFamily="'Outfit',sans-serif" fontWeight="bold">
-                सूर्य — {panchang.suryaRashi.sanskrit}
-              </text>
-            </g>
-
-            {/* Upper-center: Lunar phase graphic */}
-            <g transform="translate(184, 105)">
-              <MoonPhaseSvg degreeDiff={panchang.raw.degreeDiff} />
-            </g>
-
-            {/* Center label: current muhurta name */}
-            <text x="200" y="160" textAnchor="middle" fill="#fbbf24" fontSize="16" fontWeight="bold" fontFamily="'Cinzel',serif" letterSpacing="0.05em">
-              {panchang.muhurta.sanskrit}
+            <text x="140" y="100" fill="white" fontSize="28" fontFamily="'Outfit',sans-serif" fontWeight="bold" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 8px rgba(255,255,255,0.8))" }}>
+              {fmt2(wallTime.getHours() % 12 || 12)}:{fmt2(wallTime.getMinutes())} {wallTime.getHours() >= 12 ? "PM" : "AM"}
             </text>
-
-            {/* Left: Chandra rashi */}
-            <g transform="translate(110, 200)">
-              <text x="0" y="-8" textAnchor="middle" fill="rgba(212,175,55,0.7)" fontSize="9" fontWeight="bold" fontFamily="'Outfit',sans-serif">
-                चंद्र
-              </text>
-              <text x="0" y="5" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="'Cinzel',serif">
-                {panchang.chandraRashi.sanskrit}
-              </text>
-            </g>
-
-            {/* Right: Karana */}
-            <g transform="translate(290, 200)">
-              <text x="0" y="-8" textAnchor="middle" fill="rgba(212,175,55,0.7)" fontSize="9" fontWeight="bold" fontFamily="'Outfit',sans-serif">
-                करण
-              </text>
-              <text x="0" y="5" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" fontFamily="'Cinzel',serif">
-                {panchang.karana.sanskrit}
-              </text>
-            </g>
-
-            {/* Center large: Vedic time */}
-            <g transform="translate(200, 240)">
-              <rect x="-85" y="-20" width="170" height="40" rx="6" fill="rgba(0,0,0,0.6)" stroke="rgba(212,175,55,0.2)" strokeWidth="1" />
-              <text x="0" y="5" textAnchor="middle" fill="#d4af37" fontSize="24" fontWeight="800" fontFamily="'Cinzel',serif" style={{ filter: "drop-shadow(0 0 6px rgba(212,175,55,0.5))" }}>
-                {String(simple?.hours ?? panchang.vedicTime.muhurta).padStart(2, '0')}
-                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
-                {String(simple?.minutes ?? panchang.vedicTime.kaal).padStart(2, '0')}
-                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
-                {String(simple?.seconds ?? panchang.vedicTime.kashtha).padStart(2, '0')}
-              </text>
-              <text x="0" y="32" textAnchor="middle" fill="rgba(212,175,55,0.6)" fontSize="8" fontWeight="bold" letterSpacing="0.1em">
-                मुहूर्त | कला | काष्ठा
-              </text>
-            </g>
-
-            {/* Lower-center: Masa | Paksha | Tithi */}
-            <text x="200" y="285" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" fontFamily="'Cinzel',serif">
-              {panchang.masa.sanskrit} | {panchang.paksha.sanskrit} पक्ष | {panchang.tithi.sanskrit}
-            </text>
-
-            {/* Bottom-left: Vaar */}
-            <text x="90" y="325" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="'Outfit',sans-serif">
-              {panchang.vaar.sanskrit}
-            </text>
-
-            {/* Bottom-center: Vikram Samvat */}
-            <text x="200" y="325" textAnchor="middle" fill="rgba(212,175,55,0.8)" fontSize="11" fontWeight="bold" fontFamily="'Outfit',sans-serif">
-              {panchang.vikramSamvat} विक्रम संवत
-            </text>
-
-            {/* Bottom-right: Location */}
-            <text x="310" y="325" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="'Outfit',sans-serif">
-              भोपाल
+            <text x="860" y="100" fill="white" fontSize="26" fontFamily="'Outfit',sans-serif" fontWeight="bold" textAnchor="end" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 8px rgba(255,255,255,0.8))" }}>
+              {wallTime.getDate()} {["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"][wallTime.getMonth()]} {wallTime.getFullYear()}
             </text>
           </>
         )}
 
-        {/* Ghati needle rotating */}
-        <g transform={`rotate(${angle} 200 200)`}
-          style={{ transition: isLive ? "transform 0.4s linear" : "transform 0.8s ease" }}>
-          {/* Antique pointer arrow */}
-          <line x1="200" y1="200" x2="200" y2="88"
-            stroke="#d4af37" strokeWidth="2.5" strokeLinecap="round"
-            style={{ filter: "drop-shadow(0 0 4px #d4af37)" }} />
-          <polygon points="200,76 195,90 205,90" fill="#d4af37" style={{ filter: "drop-shadow(0 0 4px #d4af37)" }} />
-          {/* Back balance pointer */}
-          <line x1="200" y1="200" x2="200" y2="226"
-            stroke="rgba(212,175,55,0.4)" strokeWidth="1.8" strokeLinecap="round" />
+        {/* Main Title Arch */}
+        <text fill="#d4af37" fontSize="56" fontWeight="900" fontFamily="'Cinzel',serif" letterSpacing="0.1em" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 12px rgba(212,175,55,0.8))" }}>
+          <textPath href="#topTitleArch" startOffset="50%" textAnchor="middle">
+            विक्रमादित्य वैदिक घड़ी
+          </textPath>
+        </text>
+
+        {panchang && (
+          <>
+            {/* Top Center: Surya Rashi Badge */}
+            <g transform="translate(500, 200)">
+              <circle cx="0" cy="0" r="60" fill="rgba(10,25,60,0.95)" stroke="#d4af37" strokeWidth="3" style={{ filter: "drop-shadow(0 0 20px rgba(0,150,255,0.6))" }} />
+              <circle cx="0" cy="0" r="50" fill="none" stroke="rgba(212,175,55,0.4)" strokeWidth="1" strokeDasharray="4, 4" />
+              <text y="-5" textAnchor="middle" fill="#d4af37" fontSize="50" fontFamily="'Cinzel',serif" fontWeight="bold">
+                {RASHIS_LIST[panchang.suryaRashi.index]?.symbol}
+              </text>
+              <text y="30" textAnchor="middle" fill="white" fontSize="22" fontFamily="'Outfit',sans-serif" fontWeight="bold" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 5px white)" }}>
+                {panchang.suryaRashi.sanskrit}
+              </text>
+            </g>
+
+            {/* Nakshatra text below Rashi */}
+            <g transform="translate(500, 310)">
+              <path d="M -120 0 L 0 -20 L 120 0 L 0 20 Z" fill="rgba(0,0,0,0.7)" stroke="rgba(212,175,55,0.6)" strokeWidth="1.5" style={{ filter: "drop-shadow(0 0 10px rgba(212,175,55,0.4))" }}/>
+              <text y="8" textAnchor="middle" fill="#ffd700" fontSize="26" fontFamily="'Cinzel',serif" fontWeight="bold" letterSpacing="0.15em" style={legibilityStyle}>
+                {data?.panchang?.nakshatra?.name || "Loading"}
+              </text>
+            </g>
+
+            {/* Moon Phases Arch */}
+            <g transform="translate(500, 480)">
+              {[-3, -2, -1, 0, 1, 2, 3].map((idx) => {
+                const px = Math.sin(idx * 0.3) * 280;
+                const py = -Math.cos(idx * 0.3) * 100 - 40; 
+                const isCenter = idx === 0;
+                const size = isCenter ? 3.0 : 1.8 - Math.abs(idx)*0.15;
+                return (
+                  <g key={idx} transform={`translate(${px}, ${py}) scale(${size})`}>
+                    <MoonPhaseSvg degreeDiff={(panchang.raw.degreeDiff + idx*15 + 360)%360} />
+                  </g>
+                );
+              })}
+            </g>
+
+            {/* Tithi name & deity above huge numbers */}
+            <g transform="translate(500, 460)">
+               <text y="-25" textAnchor="middle" fill="white" fontSize="36" fontFamily="'Cinzel',serif" fontWeight="bold" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 12px white)" }}>
+                 {panchang.tithi.sanskrit}
+               </text>
+               <text y="8" textAnchor="middle" fill="#fbbf24" fontSize="24" fontFamily="'Outfit',sans-serif" fontWeight="bold" letterSpacing="0.1em" style={legibilityStyle}>
+                 {data?.panchang?.tithi?.name || ""}
+               </text>
+            </g>
+
+            {/* Left Badge: Chandra Rashi */}
+            <g transform="translate(220, 600)">
+              <circle cx="0" cy="0" r="75" fill="rgba(6,10,25,0.95)" stroke="rgba(0,150,255,0.6)" strokeWidth="3" style={{ filter: "drop-shadow(0 0 20px rgba(0,100,255,0.5))" }} />
+              <text y="-10" textAnchor="middle" fill="white" fontSize="34" fontFamily="'Cinzel',serif" fontWeight="bold" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 8px white)" }}>
+                {panchang.chandraRashi.sanskrit}
+              </text>
+              <path d="M -45 15 L 45 15" stroke="rgba(212,175,55,0.5)" strokeWidth="2" />
+              <text y="40" textAnchor="middle" fill="#d4af37" fontSize="24" fontFamily="'Outfit',sans-serif" fontWeight="bold" style={legibilityStyle}>
+                चंद्र
+              </text>
+            </g>
+
+            {/* Right Badge: Karana */}
+            <g transform="translate(780, 600)">
+              <circle cx="0" cy="0" r="75" fill="rgba(6,10,25,0.95)" stroke="rgba(0,150,255,0.6)" strokeWidth="3" style={{ filter: "drop-shadow(0 0 20px rgba(0,100,255,0.5))" }} />
+              <text y="-10" textAnchor="middle" fill="white" fontSize="34" fontFamily="'Cinzel',serif" fontWeight="bold" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 8px white)" }}>
+                {panchang.karana.sanskrit}
+              </text>
+              <path d="M -45 15 L 45 15" stroke="rgba(212,175,55,0.5)" strokeWidth="2" />
+              <text y="40" textAnchor="middle" fill="#d4af37" fontSize="24" fontFamily="'Outfit',sans-serif" fontWeight="bold" style={legibilityStyle}>
+                करण
+              </text>
+            </g>
+
+            {/* Center Enormous Vedic Time Display */}
+            <g transform="translate(500, 620)">
+              {/* Strong bounding box for glowing numbers */}
+              <rect x="-240" y="-70" width="480" height="120" rx="20" fill="rgba(0,0,0,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="3" style={{ filter: "drop-shadow(0 0 20px rgba(212,175,55,0.3))" }} />
+              <text x="0" y="20" textAnchor="middle" fill="white" fontSize="90" fontWeight="900" fontFamily="'Outfit',sans-serif" style={{ filter: "drop-shadow(0 0 20px rgba(255,255,255,0.8))" }}>
+                {String(simple?.hours ?? panchang.vedicTime.muhurta).padStart(2, '0')}
+                <tspan fill="#d4af37" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
+                {String(simple?.minutes ?? panchang.vedicTime.kaal).padStart(2, '0')}
+                <tspan fill="#d4af37" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
+                {String(simple?.seconds ?? panchang.vedicTime.kashtha).padStart(2, '0')}
+              </text>
+              {/* Labels under numbers */}
+              <g transform="translate(0, 85)">
+                <text x="-140" y="0" textAnchor="middle" fill="#ffd700" fontSize="24" fontWeight="bold" letterSpacing="0.05em" style={legibilityStyle}>मुहूर्त</text>
+                <text x="0" y="0" textAnchor="middle" fill="#ffd700" fontSize="24" fontWeight="bold" letterSpacing="0.05em" style={legibilityStyle}>कला</text>
+                <text x="140" y="0" textAnchor="middle" fill="#ffd700" fontSize="24" fontWeight="bold" letterSpacing="0.05em" style={legibilityStyle}>काष्ठा</text>
+                <path d="M -90 -8 L -50 -8" stroke="rgba(212,175,55,0.5)" strokeWidth="2" />
+                <path d="M 50 -8 L 90 -8" stroke="rgba(212,175,55,0.5)" strokeWidth="2" />
+              </g>
+            </g>
+
+            {/* Masa | Paksha | Tithi curved bar below the numbers */}
+            <g transform="translate(500, 780)">
+               <rect x="-260" y="2" width="520" height="38" rx="8" fill="rgba(0,0,0,0.6)" />
+               <path d="M -240 0 L 240 0" stroke="rgba(212,175,55,0.6)" strokeWidth="2" />
+               <text x="0" y="30" textAnchor="middle" fill="white" fontSize="28" fontWeight="bold" fontFamily="'Cinzel',serif" letterSpacing="0.1em" style={legibilityStyle}>
+                 {panchang.masa.sanskrit} | {panchang.paksha.sanskrit} पक्ष | {panchang.tithi.sanskrit}
+               </text>
+               <path d="M -240 45 L 240 45" stroke="rgba(212,175,55,0.6)" strokeWidth="2" />
+            </g>
+
+            {/* Bottom Left: Vaar */}
+            <g transform="translate(200, 850)">
+              <text x="0" y="0" textAnchor="middle" fill="#60a5fa" fontSize="38" fontWeight="bold" fontFamily="'Outfit',sans-serif" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 15px rgba(96,165,250,0.8))" }}>
+                {panchang.vaar.sanskrit}
+              </text>
+            </g>
+
+            {/* Bottom Right: Location */}
+            <g transform="translate(800, 850)">
+              <text x="0" y="0" textAnchor="middle" fill="#60a5fa" fontSize="38" fontWeight="bold" fontFamily="'Outfit',sans-serif" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 15px rgba(96,165,250,0.8))" }}>
+                भोपाल
+              </text>
+            </g>
+
+            {/* Bottom Center: Vikram Samvat Badge */}
+            <g transform="translate(500, 890)">
+               <path d="M -160 -30 L 160 -30 L 180 0 L 160 30 L -160 30 L -180 0 Z" fill="rgba(0,0,0,0.85)" stroke="rgba(212,175,55,0.8)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(212,175,55,0.4))" }}/>
+               <text x="0" y="10" textAnchor="middle" fill="#ffd700" fontSize="28" fontWeight="bold" fontFamily="'Cinzel',serif" letterSpacing="0.05em" style={legibilityStyle}>
+                 वि. {panchang.vikramSamvat} सं.
+               </text>
+            </g>
+          </>
+        )}
+
+        {/* Concentric Decorative Arcs/Rings to give depth */}
+        <circle cx="500" cy="500" r="390" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="2" strokeDasharray="15, 10" />
+        <circle cx="500" cy="500" r="280" fill="none" stroke="rgba(0,150,255,0.15)" strokeWidth="4" strokeDasharray="30, 15" />
+        <circle cx="500" cy="500" r="230" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="1" strokeDasharray="5, 5" />
+        
+        {/* Optional spinning astrolabe rings if we want some motion */}
+        <g transform="translate(500, 500)">
+          <g style={{ animation: "spinSlow 120s linear infinite" }}>
+            <circle cx="0" cy="0" r="430" fill="none" stroke="rgba(212,175,55,0.15)" strokeWidth="2" strokeDasharray="4, 12" />
+          </g>
+          <g style={{ animation: "spinSlowRev 90s linear infinite" }}>
+            <circle cx="0" cy="0" r="460" fill="none" stroke="rgba(0,150,255,0.1)" strokeWidth="2" strokeDasharray="6, 10" />
+          </g>
         </g>
-
-        {/* Center jewel */}
-
-
-        <circle cx="200" cy="200" r="6" fill="#d4af37" style={{ filter: "drop-shadow(0 0 4px #d4af37)" }} />
-        <circle cx="200" cy="200" r="2.5" fill="#06050a" />
-
-        {/* Hover Tooltip for Graha */}
-        {hoveredGraha && (
-          <foreignObject x="100" y="90" width="200" height="200" style={{ pointerEvents: "none" }}>
-            <div style={{
-              position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-              background: "rgba(10,8,16,0.95)", border: `1px solid ${hoveredGraha.config.color}66`,
-              borderRadius: "12px", padding: "12px 16px", color: "white",
-              boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 15px ${hoveredGraha.config.color}40`,
-              backdropFilter: "blur(12px)", minWidth: "150px", textAlign: "center",
-              zIndex: 100
-            }}>
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                <span style={{ fontSize: "20px", color: hoveredGraha.config.color, filter: `drop-shadow(0 0 5px ${hoveredGraha.config.color})` }}>
-                  {hoveredGraha.config.symbol}
-                </span>
-                <span style={{ fontSize: "16px", fontWeight: "bold", fontFamily: "'Cinzel',serif", color: hoveredGraha.config.color }}>
-                  {hoveredGraha.sanskrit}
-                </span>
-                {hoveredGraha.isRetrograde && (
-                  <span style={{
-                    fontSize: "10px", color: "#f87171", fontWeight: 700,
-                    background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)",
-                    borderRadius: "4px", padding: "1px 4px", marginLeft: "2px"
-                  }}>वक्री ℞</span>
-                )}
-              </div>
-              <div style={{ fontSize: "11px", color: "#e2e8f0", marginBottom: "6px" }}>{hoveredGraha.name}</div>
-
-              <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "6px", marginBottom: "4px" }}>
-                <div style={{ fontSize: "9px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em" }}>Sidereal Longitude</div>
-                <div style={{ fontSize: "12px", fontFamily: "monospace", color: "#d4af37" }}>{hoveredGraha.longitude.toFixed(2)}°</div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", textAlign: "left" }}>
-                <div>
-                  <div style={{ fontSize: "8px", color: "#9ca3af", textTransform: "uppercase" }}>Rashi</div>
-                  <div style={{ fontSize: "11px", fontWeight: "bold", color: "#c4b5fd" }}>{hoveredGraha.rasi.signSanskrit}</div>
-                  <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.5)" }}>{hoveredGraha.rasi.degreeInSign.toFixed(1)}°</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "8px", color: "#9ca3af", textTransform: "uppercase" }}>Nakshatra</div>
-                  <div style={{ fontSize: "11px", fontWeight: "bold", color: "#c4b5fd" }}>{hoveredGraha.rasi.nakshatra}</div>
-                  <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.5)" }}>Pada {hoveredGraha.rasi.nakshatraPada}</div>
-                </div>
-              </div>
-            </div>
-          </foreignObject>
-        )}
-
-        {/* Active Rashi Detail Card */}
-        {activeRashiDetail !== null && (
-          <foreignObject x="100" y="100" width="200" height="200" style={{ pointerEvents: "all" }}>
-            <div style={{
-              position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-              background: "rgba(10,8,16,0.95)", border: `1px solid rgba(212,175,55,0.4)`,
-              borderRadius: "12px", padding: "12px 16px", color: "white",
-              boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 15px rgba(212,175,55,0.2)`,
-              backdropFilter: "blur(12px)", minWidth: "160px", textAlign: "center",
-              zIndex: 100
-            }}>
-              <button
-                onClick={() => setActiveRashiDetail(null)}
-                style={{ position: "absolute", top: "4px", right: "8px", background: "none", border: "none", color: "#9ca3af", cursor: "pointer", fontSize: "16px" }}
-              >×</button>
-
-              <div style={{ fontSize: "20px", color: "#d4af37", marginBottom: "4px" }}>{RASHIS_LIST[activeRashiDetail].symbol}</div>
-              <div style={{ fontSize: "14px", fontWeight: "bold", fontFamily: "'Cinzel',serif", color: "#d4af37" }}>
-                {RASHIS_LIST[activeRashiDetail].sanskrit}
-              </div>
-              <div style={{ fontSize: "10px", color: "#9ca3af", marginBottom: "8px" }}>{RASHIS_LIST[activeRashiDetail].name}</div>
-
-              <div style={{ borderTop: "1px solid rgba(212,175,55,0.2)", paddingTop: "8px" }}>
-                <div style={{ fontSize: "8px", textTransform: "uppercase", color: "#9ca3af", marginBottom: "4px", letterSpacing: "0.05em" }}>Transiting Grahas</div>
-                {(() => {
-                  const grahasInSign = data.planets.filter((p: any) => p.rasi.signIndex === activeRashiDetail && Object.keys(GRAHAS_CONFIG).includes(p.name));
-                  if (grahasInSign.length === 0) return <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "4px" }}>None</div>;
-                  return grahasInSign.map((p: any) => {
-                    const col = GRAHAS_CONFIG[p.name]?.color || "#d4af37";
-                    return (
-                      <div key={p.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", marginBottom: "2px" }}>
-                        <span style={{ color: col, fontWeight: "bold" }}>{GRAHAS_CONFIG[p.name]?.symbol || "•"} {p.sanskrit}</span>
-                        <span style={{ color: "rgba(255,255,255,0.7)", fontFamily: "monospace" }}>{p.rasi.degreeInSign.toFixed(1)}°</span>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          </foreignObject>
-        )}
 
       </svg>
     </div>
   );
 }
 
-
 function MoonPhaseSvg({ degreeDiff }: { degreeDiff: number }) {
   const isWaxing = degreeDiff < 180;
   return (
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke="rgba(212, 175, 55, 0.4)" strokeWidth="1" />
-      <circle cx="12" cy="12" r="8" fill="#131022" />
+      <circle cx="12" cy="12" r="8" fill="rgba(255,255,255,0.15)" />
       {degreeDiff >= 170 && degreeDiff <= 190 ? (
-        <circle cx="12" cy="12" r="8" fill="#d4af37" style={{ filter: "drop-shadow(0 0 4px #d4af37)" }} />
+        <circle cx="12" cy="12" r="8" fill="#ffffff" style={{ filter: "drop-shadow(0 0 6px #ffffff)" }} />
       ) : degreeDiff < 10 || degreeDiff > 350 ? (
-        <circle cx="12" cy="12" r="8" fill="#2d2a3a" />
+        <circle cx="12" cy="12" r="8" fill="rgba(255,255,255,0.05)" />
       ) : (
         <path
           d={isWaxing ? "M12 4a8 8 0 0 1 0 16 8 8 0 0 0 0-16z" : "M12 4a8 8 0 0 0 0 16 8 8 0 0 1 0-16z"}
-          fill="#d4af37"
-          style={{ filter: "drop-shadow(0 0 3px #d4af37)" }}
+          fill="#ffffff"
+          style={{ filter: "drop-shadow(0 0 4px #ffffff)" }}
         />
       )}
     </svg>
   );
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
