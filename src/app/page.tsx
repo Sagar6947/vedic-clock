@@ -568,11 +568,11 @@ function ClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simple, wal
             <g transform="translate(200, 240)">
               <rect x="-85" y="-20" width="170" height="40" rx="6" fill="rgba(0,0,0,0.6)" stroke="rgba(212,175,55,0.2)" strokeWidth="1" />
               <text x="0" y="5" textAnchor="middle" fill="#d4af37" fontSize="24" fontWeight="800" fontFamily="'Cinzel',serif" style={{ filter: "drop-shadow(0 0 6px rgba(212,175,55,0.5))" }}>
-                {String(panchang.vedicTime.muhurta).padStart(2, '0')}
-                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? "pulseKashtha 3.2s infinite" : "none" }}> : </tspan>
-                {String(panchang.vedicTime.kaal).padStart(2, '0')}
-                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? "pulseKashtha 3.2s infinite" : "none" }}> : </tspan>
-                {String(panchang.vedicTime.kashtha).padStart(2, '0')}
+                {String(simple?.hours ?? panchang.vedicTime.muhurta).padStart(2, '0')}
+                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
+                {String(simple?.minutes ?? panchang.vedicTime.kaal).padStart(2, '0')}
+                <tspan fill="rgba(212,175,55,0.5)" style={{ animation: isLive ? `pulseKashtha ${data.vedicTime.kashthaLenSec}s infinite` : "none" }}> : </tspan>
+                {String(simple?.seconds ?? panchang.vedicTime.kashtha).padStart(2, '0')}
               </text>
               <text x="0" y="32" textAnchor="middle" fill="rgba(212,175,55,0.6)" fontSize="8" fontWeight="bold" letterSpacing="0.1em">
                 मुहूर्त | कला | काष्ठा
@@ -825,13 +825,27 @@ export default function Home() {
     const rawDecGhati = elapsedMs / ghatiMs;
     const norm = ((rawDecGhati % 60) + 60) % 60;
 
-    let f = elapsedMs / ahoratraMs;
-    if (f < 0) f = 0;
-    if (f >= 1) f = 0.999999999;
+    const daySRMs = new Date(data.vedicTime.anchors.daySR).getTime();
+    const daySSMs = new Date(data.vedicTime.anchors.daySS).getTime();
+    const nextSRMs = new Date(data.vedicTime.anchors.nextSR).getTime();
+    const nowMs = target.getTime();
 
-    const simpleHours = Math.floor(f * 30);
-    const simpleMinutes = Math.floor(f * 900) % 30;
-    const simpleSeconds = Math.floor(f * 27000) % 30;
+    let M: number;
+    if (nowMs < daySSMs) {
+      const muhurtaLenMs = (daySSMs - daySRMs) / 15;
+      M = (nowMs - daySRMs) / muhurtaLenMs;
+    } else {
+      const muhurtaLenMs = (nextSRMs - daySSMs) / 15;
+      M = 15 + (nowMs - daySSMs) / muhurtaLenMs;
+    }
+
+    if (M < 0) M = 0;
+    if (M >= 30) M = 29.999999999;
+
+    const simpleHours = Math.floor(M);
+    const fk = (M - simpleHours) * 30;
+    const simpleMinutes = Math.floor(fk);
+    const simpleSeconds = Math.floor((fk - simpleMinutes) * 30);
 
     return {
       ghati: Math.floor(norm),

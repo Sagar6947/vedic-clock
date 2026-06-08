@@ -280,17 +280,17 @@ export interface VedicTimeData {
   elapsedSeconds: number;
   totalDaySeconds: number;
 
-  simple: {
-    hours: number;
-    minutes: number;
-    seconds: number;
-  };
-
-  advance: {
-    isDay: boolean;
-    hours: number;
-    minutes: number;
-    seconds: number;
+  muhurta: number;
+  kaal: number;
+  kashtha: number;
+  segment: "day" | "night";
+  muhurtaLenSec: number;
+  kashthaLenSec: number;
+  muhurtaIndex: number;
+  anchors: {
+    daySR: string;
+    daySS: string;
+    nextSR: string;
   };
 }
 

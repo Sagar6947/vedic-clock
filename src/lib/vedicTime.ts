@@ -4,10 +4,16 @@ export interface VedicTimeResult {
   muhurta: number;
   kaal: number;
   kashtha: number;
-  fraction: number;
-  sunrise: Date;
-  nextSunrise: Date;
-  muhurtaLengthSec: number;
+  segment: "day" | "night";
+  muhurtaIndex: number;
+  muhurtaLenSec: number;
+  kashthaLenSec: number;
+  anchors: {
+    daySR: Date;
+    daySS: Date;
+    nextSR: Date;
+  };
+  model?: "uniform-fallback";
 }
 
 export interface VedicUnits {
@@ -23,7 +29,6 @@ export interface Location {
 }
 
 function dateToJD(date: Date): number {
-  // JD = (unix ms / 86400000) + 2440587.5
   return date.getTime() / 86400000 + 2440587.5;
 }
 
@@ -32,13 +37,12 @@ function jdToDate(jd: number): Date {
 }
 
 export async function civilToVedic(
-  date: Date,
+  now: Date,
   location: Location
 ): Promise<VedicTimeResult> {
   const eph = await getSwissEph();
   
-  const jdT = dateToJD(date);
-  // Default to Ujjain if not provided
+  const jdT = dateToJD(now);
   const lat = location.lat ?? 23.1793;
   const lon = location.lon ?? 75.7849;
   const alt = location.elevation ?? 490;
@@ -47,70 +51,140 @@ export async function civilToVedic(
   const epheflg = Constants.SEFLG_MOSEPH;
   // Default SE_CALC_RISE uses -0.833 degrees for upper limb + refraction
   const srRsmi = Constants.SE_CALC_RISE; 
+  const ssRsmi = Constants.SE_CALC_SET;
 
-  // First, calculate the sunrise for the current civil day (at 00:00 UTC)
-  const y = date.getUTCFullYear();
-  const m = date.getUTCMonth() + 1;
-  const d = date.getUTCDate();
+  // Calculate the sunrise/sunset for the current civil day (at 00:00 UTC)
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  const d = now.getUTCDate();
   const jdMid = eph.swe_julday(y, m, d, 0.0, Constants.SE_GREG_CAL);
 
-  let srTodayRes;
-  try {
-    srTodayRes = eph.swe_rise_trans(jdMid, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0);
-  } catch (err) {
-    throw new Error("Sun does not rise (polar region or ephemeris error)");
-  }
+  let srToday: number, ssToday: number, nextSR: number;
+  let daySR: number, daySS: number;
   
-  const srToday = srTodayRes.tret;
+  try {
+    srToday = eph.swe_rise_trans(jdMid, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0).tret;
+  } catch (err) {
+    // High latitude fallback
+    return uniformFallback(jdT);
+  }
 
-  let srStart: number;
-  let srEnd: number;
-
-  if (jdT < srToday) {
-    // Current time is before today's UTC-calculated sunrise, 
-    // so the anchor sunrise is the one prior to today's sunrise.
-    const jdPrev = jdMid - 1.0;
+  if (jdT >= srToday) {
+    daySR = srToday;
     try {
-      srStart = eph.swe_rise_trans(jdPrev, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0).tret;
-      srEnd = srToday;
+      daySS = eph.swe_rise_trans(jdMid, Constants.SE_SUN, null, epheflg, ssRsmi, geopos, 0, 0).tret;
+      // If sunset happened before sunrise (e.g. jdT > srToday, but ssToday was before srToday due to UTC day offset)
+      if (daySS < daySR) {
+          // This happens if 00:00 UTC sees a sunset before sunrise.
+          // We must ensure daySS is the sunset AFTER daySR.
+          daySS = eph.swe_rise_trans(daySR, Constants.SE_SUN, null, epheflg, ssRsmi, geopos, 0, 0).tret;
+      }
+      nextSR = eph.swe_rise_trans(daySS, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0).tret;
     } catch (err) {
-      throw new Error("Sun does not rise (polar region or ephemeris error)");
+      return uniformFallback(jdT);
     }
   } else {
-    // Current time is on or after today's UTC-calculated sunrise.
-    const jdNext = jdMid + 1.0;
+    // Before today's sunrise -> use previous day
     try {
-      srStart = srToday;
-      srEnd = eph.swe_rise_trans(jdNext, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0).tret;
+      // Find the sunrise before srToday
+      daySR = eph.swe_rise_trans(jdMid - 1.0, Constants.SE_SUN, null, epheflg, srRsmi, geopos, 0, 0).tret;
+      daySS = eph.swe_rise_trans(daySR, Constants.SE_SUN, null, epheflg, ssRsmi, geopos, 0, 0).tret;
+      nextSR = srToday;
     } catch (err) {
-      throw new Error("Sun does not rise (polar region or ephemeris error)");
+      return uniformFallback(jdT);
     }
   }
 
-  const deltaSec = (jdT - srStart) * 86400;
-  const LSec = (srEnd - srStart) * 86400;
+  const nowSec = jdT * 86400;
+  const srSec = daySR * 86400;
+  const ssSec = daySS * 86400;
+  const nsrSec = nextSR * 86400;
 
-  if (LSec <= 0) {
-    throw new Error("Invalid sunrise bounds");
+  if (ssSec <= srSec || nsrSec <= ssSec) {
+    return uniformFallback(jdT);
   }
 
-  let f = deltaSec / LSec;
-  // Math precision safety
-  if (f < 0) f = 0;
-  if (f >= 1) f = 0.999999999;
+  let muhurtaLen: number;
+  let M: number;
+  let segment: "day" | "night";
 
-  const muhurta = Math.floor(f * 30);
-  const kaal = Math.floor(f * 900) % 30;
-  const kashtha = Math.floor(f * 27000) % 30;
+  if (nowSec < ssSec) {
+    // DAYTIME
+    segment = "day";
+    muhurtaLen = (ssSec - srSec) / 15;
+    M = (nowSec - srSec) / muhurtaLen;
+  } else {
+    // NIGHTTIME
+    segment = "night";
+    muhurtaLen = (nsrSec - ssSec) / 15;
+    M = 15 + (nowSec - ssSec) / muhurtaLen;
+  }
+
+  // Safety cap just in case of float precision exactly on nextSR
+  if (M >= 30) {
+    M = 29.999999999;
+  } else if (M < 0) {
+    M = 0;
+  }
+
+  const muhurta = Math.floor(M);
+  const fk = (M - muhurta) * 30;
+  const kala = Math.floor(fk);
+  const kashtha = Math.floor((fk - kala) * 30);
 
   return {
     muhurta,
-    kaal,
+    kaal: kala,
     kashtha,
-    fraction: f,
-    sunrise: jdToDate(srStart),
-    nextSunrise: jdToDate(srEnd),
-    muhurtaLengthSec: LSec / 30
+    segment,
+    muhurtaIndex: muhurta + 1,
+    muhurtaLenSec: muhurtaLen,
+    kashthaLenSec: muhurtaLen / 900,
+    anchors: {
+      daySR: jdToDate(daySR),
+      daySS: jdToDate(daySS),
+      nextSR: jdToDate(nextSR)
+    }
+  };
+}
+
+function uniformFallback(jdT: number): VedicTimeResult {
+  const midnight = Math.floor(jdT) - 0.5;
+  const daySR = midnight + 0.25; 
+  const daySS = midnight + 0.75; 
+  const nextSR = daySR + 1.0;
+  
+  const nowSec = jdT * 86400;
+  const srSec = daySR * 86400;
+  const nsrSec = nextSR * 86400;
+  const total = nsrSec - srSec;
+  
+  let f = (nowSec - srSec) / total;
+  if (f < 0) f = 0;
+  if (f >= 1) f = 0.999999;
+  
+  const M = f * 30;
+  const muhurta = Math.floor(M);
+  const fk = (M - muhurta) * 30;
+  const kala = Math.floor(fk);
+  const kashtha = Math.floor((fk - kala) * 30);
+  
+  const muhurtaLen = total / 30;
+  
+  return {
+    muhurta,
+    kaal: kala,
+    kashtha,
+    segment: muhurta < 15 ? "day" : "night",
+    muhurtaIndex: muhurta + 1,
+    muhurtaLenSec: muhurtaLen,
+    kashthaLenSec: muhurtaLen / 900,
+    anchors: {
+      daySR: jdToDate(daySR),
+      daySS: jdToDate(daySS),
+      nextSR: jdToDate(nextSR)
+    },
+    model: "uniform-fallback"
   };
 }
 
@@ -129,25 +203,28 @@ export async function vedicToCivil(
     throw new Error("Invalid Vedic time unit range. Each must be 0-29.");
   }
 
-  // To find the sunrise, we compute civilToVedic for noon (local) of dayDate
-  // Using 12:00 PM local usually safely drops us in the middle of the correct Vedic day
-  // Let's compute f and reverse it.
-  const f = (muhurta * 900 + kaal * 30 + kashtha) / 27000;
-  
-  // Create a time around local noon for the given date to find that day's sunrise
-  // Since we don't have the timezone easily, 06:00 UTC is usually daytime in India/Europe.
-  // Actually, we can just use the exact dayDate as an anchor if it falls during that Vedic day.
-  // To be perfectly robust: civilToVedic(dayDate) will give us the srStart for the Vedic day 
-  // that dayDate belongs to.
-  
   const refVedic = await civilToVedic(dayDate, location);
   
-  const srStartJd = dateToJD(refVedic.sunrise);
-  const srEndJd = dateToJD(refVedic.nextSunrise);
-  const L = srEndJd - srStartJd; // in days
+  const { daySR, daySS, nextSR } = refVedic.anchors;
+  const srSec = daySR.getTime() / 1000;
+  const ssSec = daySS.getTime() / 1000;
+  const nsrSec = nextSR.getTime() / 1000;
+  
+  let targetSec: number;
+  
+  if (muhurta < 15) {
+    // Daytime
+    const muhurtaLen = (ssSec - srSec) / 15;
+    const M = muhurta + (kaal / 30) + (kashtha / 900);
+    targetSec = srSec + (M * muhurtaLen);
+  } else {
+    // Nighttime
+    const muhurtaLen = (nsrSec - ssSec) / 15;
+    const M = (muhurta - 15) + (kaal / 30) + (kashtha / 900);
+    targetSec = ssSec + (M * muhurtaLen);
+  }
 
-  const jdT = srStartJd + (f * L);
-  return jdToDate(jdT);
+  return new Date(targetSec * 1000);
 }
 
 export function formatVedic(v: VedicUnits): string {

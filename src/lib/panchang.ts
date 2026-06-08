@@ -100,32 +100,17 @@ export async function getFullPanchang(
     purnimantaMasa = (amantaMasa + 1) % 12;
   }
   
-  // Vaar (Weekday at sunrise)
-  // Let's use civilToVedic to get exact sunrise.
-  // We will calibrate the Ujjain LMT + offset.
-  // For Bhopal golden test, physical clock uses Ujjain. 
-  const ujjain = { lat: 23.1793, lon: 75.7849, elevation: 0 };
-  const v = await civilToVedic(dateUTC, ujjain);
+  // Use the exact location instead of Ujjain fallback.
+  const v = await civilToVedic(dateUTC, location);
   
-  // If we need a specific offset to get exactly 06:02:13
-  // v.fraction comes from (target - sunrise) / (next - sunrise)
-  // We can apply the calibration if passed.
-  let effectiveSunriseMs = new Date(v.sunrise).getTime() + (sunriseOffsetSeconds * 1000);
-  let effectiveNextSunriseMs = new Date(v.nextSunrise).getTime() + (sunriseOffsetSeconds * 1000);
-  let elapsedMs = dateUTC.getTime() - effectiveSunriseMs;
-  let ahoratraMs = effectiveNextSunriseMs - effectiveSunriseMs;
-  let f = elapsedMs / ahoratraMs;
-  
-  if (f < 0) f = 0; if (f >= 1) f = 0.999999999;
-  
-  const muhurtaVal = Math.floor(f * 30);
-  const kaalVal = Math.floor(f * 900) % 30;
-  const kashthaVal = Math.floor(f * 27000) % 30;
+  const muhurtaVal = v.muhurta;
+  const kaalVal = v.kaal;
+  const kashthaVal = v.kashtha;
   
   const fmt2 = (n: number) => String(n).padStart(2, "0");
   const formattedVedic = `${fmt2(muhurtaVal)}:${fmt2(kaalVal)}:${fmt2(kashthaVal)}`;
   
-  const srDate = new Date(effectiveSunriseMs);
+  const srDate = v.anchors.daySR;
   const vaaraIdx = srDate.getDay();
   
   // Vikram Samvat
@@ -137,8 +122,8 @@ export async function getFullPanchang(
   }
   
   return {
-    sunriseUsed: new Date(effectiveSunriseMs).toISOString(),
-    sunriseSource: "Ujjain Standard + Calibration Offset",
+    sunriseUsed: v.anchors.daySR.toISOString(),
+    sunriseSource: "Swiss Ephemeris Topocentric",
     vedicTime: {
       muhurta: muhurtaVal,
       kaal: kaalVal,
@@ -146,9 +131,9 @@ export async function getFullPanchang(
       formatted: formattedVedic,
     },
     muhurta: {
-      index: muhurtaVal,
-      sanskrit: MUHURTA_NAMES[muhurtaVal].sanskrit,
-      name: MUHURTA_NAMES[muhurtaVal].name,
+      index: v.muhurtaIndex,
+      sanskrit: MUHURTA_NAMES[v.muhurtaIndex - 1]?.sanskrit || MUHURTA_NAMES[0].sanskrit,
+      name: MUHURTA_NAMES[v.muhurtaIndex - 1]?.name || MUHURTA_NAMES[0].name,
     },
     suryaRashi: {
       index: suryaRashiIdx,

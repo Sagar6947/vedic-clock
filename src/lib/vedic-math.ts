@@ -272,48 +272,19 @@ export async function calculateVedicData(
   const location = { lat: latitude, lon: longitude, elevation: altitude };
   const vedicTimeEngineData = await civilToVedic(dateUTC, location);
 
-  // Advance calculation
-  const isDayTime = jdT < ssStart;
-  let advanceHours = 0;
-  let advanceMinutes = 0;
-  let advanceSeconds = 0;
-
-  if (isDayTime) {
-    const elapsedSinceSr = elapsedSeconds;
-    const advHourLength = dinamanaSeconds / 15;
-    const advMinLength = advHourLength / 48;
-    const advSecLength = advMinLength / 60;
-
-    advanceHours = Math.floor(elapsedSinceSr / advHourLength);
-    const remHours = elapsedSinceSr % advHourLength;
-    advanceMinutes = Math.floor(remHours / advMinLength);
-    const remMins = remHours % advMinLength;
-    advanceSeconds = Math.floor(remMins / advSecLength);
-  } else {
-    const elapsedSinceSs = (jdT - ssStart) * 86400;
-    const advHourLength = ratrimanaSeconds / 15;
-    const advMinLength = advHourLength / 48;
-    const advSecLength = advMinLength / 60;
-
-    advanceHours = Math.floor(elapsedSinceSs / advHourLength);
-    const remHours = elapsedSinceSs % advHourLength;
-    advanceMinutes = Math.floor(remHours / advMinLength);
-    const remMins = remHours % advMinLength;
-    advanceSeconds = Math.floor(remMins / advSecLength);
-  }
-
   const vedicTime: VedicTimeData = {
     ghati, pala, vipala, decimalGhati, elapsedSeconds, totalDaySeconds: ahoratraSeconds,
-    simple: {
-      hours: vedicTimeEngineData.muhurta,
-      minutes: vedicTimeEngineData.kaal,
-      seconds: vedicTimeEngineData.kashtha,
-    },
-    advance: {
-      isDay: isDayTime,
-      hours: advanceHours,
-      minutes: advanceMinutes,
-      seconds: advanceSeconds,
+    muhurta: vedicTimeEngineData.muhurta,
+    kaal: vedicTimeEngineData.kaal,
+    kashtha: vedicTimeEngineData.kashtha,
+    segment: vedicTimeEngineData.segment,
+    muhurtaLenSec: vedicTimeEngineData.muhurtaLenSec,
+    kashthaLenSec: vedicTimeEngineData.kashthaLenSec,
+    muhurtaIndex: vedicTimeEngineData.muhurtaIndex,
+    anchors: {
+      daySR: vedicTimeEngineData.anchors.daySR.toISOString(),
+      daySS: vedicTimeEngineData.anchors.daySS.toISOString(),
+      nextSR: vedicTimeEngineData.anchors.nextSR.toISOString()
     }
   };
 
