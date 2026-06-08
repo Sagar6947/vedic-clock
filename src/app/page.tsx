@@ -351,7 +351,7 @@ function ClassicClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
             <g
               key={r.name}
               onClick={() => setActiveRashiDetail(activeRashiDetail === i ? null : i)}
-              style={{ cursor: "pointer", pointerEvents: "all" }}
+              style={{ cursor: "pointer", pointerEvents: "all", transformOrigin: `${rx}px ${ry}px`, transform: (activeRashiDetail === i) ? "scale(1.15)" : "scale(1)", transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}
             >
               {isActive && (
                 <>
@@ -404,7 +404,7 @@ function ClassicClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
               key={p.name}
               onMouseEnter={() => setHoveredGraha(p)}
               onMouseLeave={() => setHoveredGraha(null)}
-              style={{ cursor: "pointer", pointerEvents: "all" }}
+              style={{ cursor: "pointer", pointerEvents: "all", transformOrigin: `${gx}px ${gy}px`, transform: isHovered ? "scale(1.2)" : "scale(1)", transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}
             >
               <line x1={gx} y1={gy} x2={rx} y2={ry} stroke={col} strokeWidth="0.5" strokeOpacity="0.4" />
               <circle cx={gx} cy={gy} r={isHovered ? "9" : "7"} fill="rgba(6,5,10,0.85)" stroke={col} strokeWidth="1" style={{ filter: `drop-shadow(0 0 ${isHovered ? '6px' : '3px'} ${col})` }} />
@@ -717,6 +717,51 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
       `}</style>
       <svg viewBox="0 0 1000 1000" className="w-full h-full">
         <defs>
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes astrolabe-spin { 100% { transform: rotate(360deg); } }
+            @keyframes astrolabe-spin-reverse { 100% { transform: rotate(-360deg); } }
+            .spin-slow { animation: astrolabe-spin 360s linear infinite; transform-origin: 500px 500px; }
+            .spin-slow-reverse { animation: astrolabe-spin-reverse 300s linear infinite; transform-origin: 500px 500px; }
+            .spin-medium { animation: astrolabe-spin 180s linear infinite; transform-origin: 500px 500px; }
+            .spin-medium-reverse { animation: astrolabe-spin-reverse 120s linear infinite; transform-origin: 500px 500px; }
+            .spin-fast { animation: astrolabe-spin 60s linear infinite; transform-origin: 500px 500px; }
+            .spin-fast-reverse { animation: astrolabe-spin-reverse 45s linear infinite; transform-origin: 500px 500px; }
+            .spin-center-slow { animation: astrolabe-spin 240s linear infinite; transform-origin: 0px 0px; }
+            .spin-center-slow-reverse { animation: astrolabe-spin-reverse 180s linear infinite; transform-origin: 0px 0px; }
+            @keyframes pulse-gold { 0% { filter: drop-shadow(0 0 10px rgba(212,175,55,0.3)); } 100% { filter: drop-shadow(0 0 30px rgba(212,175,55,1)); } }
+            @keyframes pulse-blue { 0% { filter: drop-shadow(0 0 10px rgba(0,100,255,0.3)); } 100% { filter: drop-shadow(0 0 25px rgba(0,150,255,0.8)); } }
+            .animate-pulse-gold { animation: pulse-gold 3s ease-in-out infinite alternate; }
+            .animate-pulse-blue { animation: pulse-blue 4s ease-in-out infinite alternate; }
+            .hover-scale { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+            .hover-scale:hover { transform: scale(1.05); }
+            @keyframes pranayama-breathe {
+              0%, 100% { filter: contrast(1.2) brightness(0.8); }
+              50% { filter: contrast(1.4) brightness(1.1); }
+            }
+            .breathe-only { animation: pranayama-breathe 16s ease-in-out infinite; transform-origin: 500px 500px; }
+            
+            @keyframes sound-ripple {
+              0% { r: 150px; opacity: 0.8; stroke-width: 4px; }
+              100% { r: 500px; opacity: 0; stroke-width: 0.5px; }
+            }
+            .om-ripple { animation: sound-ripple 16s cubic-bezier(0.25, 1, 0.5, 1) infinite; fill: none; stroke: rgba(212,175,55,1); pointer-events: none; }
+            .om-ripple-delayed-1 { animation-delay: 5.33s; }
+            .om-ripple-delayed-2 { animation-delay: 10.66s; }
+
+            @keyframes mystic-aura {
+              0%, 100% { filter: drop-shadow(0 0 10px rgba(212,175,55,0.6)); fill: #d4af37; }
+              50% { filter: drop-shadow(0 0 25px rgba(255,255,255,0.8)); fill: #fff1a0; }
+            }
+            .title-mystic-aura { animation: mystic-aura 8s ease-in-out infinite; }
+
+            @keyframes twinkle-dust {
+              0%, 100% { opacity: 0.1; filter: drop-shadow(0 0 2px rgba(212,175,55,0.2)); transform: translateY(0px); }
+              50% { opacity: 0.9; filter: drop-shadow(0 0 8px rgba(212,175,55,1)); transform: translateY(-15px); }
+            }
+            .cosmic-dust-1 { animation: twinkle-dust 7s ease-in-out infinite; }
+            .cosmic-dust-2 { animation: twinkle-dust 5s ease-in-out infinite; animation-delay: 2s; }
+            .cosmic-dust-3 { animation: twinkle-dust 9s ease-in-out infinite; animation-delay: 4s; }
+          `}} />
           <clipPath id="clockTowerClip">
             <circle cx="500" cy="500" r="490" />
           </clipPath>
@@ -729,34 +774,55 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
 
         {/* Background Setup */}
         <circle cx="500" cy="500" r="490" fill="#0B0C10" />
-        <image
-          href="/ancient_mandala_bg.png"
-          x="0"
-          y="0"
-          width="1000"
-          height="1000"
-          clipPath="url(#clockTowerClip)"
-          opacity="0.85"
-          style={{ pointerEvents: "none", filter: "contrast(1.2) brightness(0.9)" }}
-        />
+        <g className="spin-slow">
+          <image
+            className="breathe-only"
+            href="/ancient_mandala_bg.png"
+            x="0"
+            y="0"
+            width="1000"
+            height="1000"
+            clipPath="url(#clockTowerClip)"
+            opacity="0.85"
+            style={{ pointerEvents: "none" }}
+          />
+        </g>
         <circle cx="500" cy="500" r="490" fill="rgba(0,0,0,0.4)" style={{ pointerEvents: "none" }} />
         
+        {/* Om Resonance Ripples */}
+        <circle cx="500" cy="500" className="om-ripple" />
+        <circle cx="500" cy="500" className="om-ripple om-ripple-delayed-1" />
+        <circle cx="500" cy="500" className="om-ripple om-ripple-delayed-2" />
+        
+        {/* Cosmic Gold Dust */}
+        <g fill="#d4af37" style={{ pointerEvents: "none" }}>
+          <circle cx="350" cy="200" r="2" className="cosmic-dust-1" />
+          <circle cx="650" cy="220" r="1.5" className="cosmic-dust-2" />
+          <circle cx="250" cy="400" r="2.5" className="cosmic-dust-3" />
+          <circle cx="750" cy="420" r="2" className="cosmic-dust-1" style={{animationDelay: '1s'}} />
+          <circle cx="450" cy="300" r="1.5" className="cosmic-dust-2" style={{animationDelay: '3s'}} />
+          <circle cx="550" cy="750" r="2" className="cosmic-dust-3" style={{animationDelay: '2s'}} />
+          <circle cx="300" cy="650" r="2.5" className="cosmic-dust-1" style={{animationDelay: '5s'}} />
+          <circle cx="700" cy="680" r="1.5" className="cosmic-dust-2" style={{animationDelay: '0.5s'}} />
+          <circle cx="400" cy="800" r="2" className="cosmic-dust-3" style={{animationDelay: '4.5s'}} />
+        </g>
+        
         {/* Outer Glowing Bezel */}
-        <circle cx="500" cy="500" r="495" fill="none" stroke="rgba(212,175,55,0.4)" strokeWidth="10" style={{ filter: "drop-shadow(0 0 15px rgba(212,175,55,0.5))" }} />
+        <circle cx="500" cy="500" r="495" fill="none" stroke="rgba(212,175,55,0.4)" strokeWidth="10" className="animate-pulse-gold" />
         <circle cx="500" cy="500" r="485" fill="none" stroke="rgba(212,175,55,0.8)" strokeWidth="4" />
-        <circle cx="500" cy="500" r="475" fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="2" strokeDasharray="10, 5" />
+        <circle cx="500" cy="500" r="475" fill="none" stroke="rgba(212,175,55,0.3)" strokeWidth="2" strokeDasharray="10, 5" className="spin-medium" />
 
         {/* Top Corners: Gregorian Time and Date */}
         {wallTime && (
           <>
             <g transform="translate(180, 160)">
-              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(0,100,255,0.4))" }}/>
+              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" className="animate-pulse-blue" />
               <text x="0" y="6" textAnchor="middle" fill="white" fontSize="22" fontFamily="'Outfit',sans-serif" fontWeight="bold">
                 {fmt2(wallTime.getHours() % 12 || 12)}:{fmt2(wallTime.getMinutes())} {wallTime.getHours() >= 12 ? "PM" : "AM"}
               </text>
             </g>
             <g transform="translate(820, 160)">
-              <rect x="-100" y="-20" width="200" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(0,100,255,0.4))" }}/>
+              <rect x="-100" y="-20" width="200" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" className="animate-pulse-blue" />
               <text x="0" y="6" textAnchor="middle" fill="white" fontSize="20" fontFamily="'Outfit',sans-serif" fontWeight="bold">
                 {wallTime.getDate()} {["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"][wallTime.getMonth()]} {wallTime.getFullYear()}
               </text>
@@ -765,7 +831,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
         )}
 
         {/* Main Title Arch */}
-        <text fill="#d4af37" fontSize="44" fontWeight="900" fontFamily="'Cinzel',serif" letterSpacing="0.1em" style={{ ...legibilityStyle, filter: "drop-shadow(0 0 12px rgba(212,175,55,0.8))" }}>
+        <text fontSize="44" fontWeight="900" fontFamily="'Cinzel',serif" letterSpacing="0.1em" className="title-mystic-aura" style={legibilityStyle}>
           <textPath href="#topTitleArch" startOffset="50%" textAnchor="middle">
             विक्रमादित्य वैदिक घड़ी
           </textPath>
@@ -844,7 +910,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
 
             {/* Muhurat Name */}
             <g transform="translate(500, 520)">
-               <rect x="-120" y="-20" width="240" height="40" rx="20" fill="rgba(212,175,55,0.15)" stroke="rgba(212,175,55,0.8)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(212,175,55,0.3))" }}/>
+               <rect x="-120" y="-20" width="240" height="40" rx="20" fill="rgba(212,175,55,0.15)" stroke="rgba(212,175,55,0.8)" strokeWidth="2" className="animate-pulse-gold" />
                <text x="0" y="6" textAnchor="middle" fill="#ffd700" fontSize="22" fontWeight="bold" fontFamily="'Cinzel',serif" letterSpacing="0.05em" style={legibilityStyle}>
                  {panchang.muhurta.sanskrit}
                </text>
@@ -883,7 +949,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
 
             {/* Bottom Left: Vaar */}
             <g transform="translate(220, 840)">
-              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(0,100,255,0.4))" }}/>
+              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" className="animate-pulse-blue" />
               <text x="0" y="7" textAnchor="middle" fill="white" fontSize="24" fontWeight="bold" fontFamily="'Outfit',sans-serif">
                 {panchang.vaar.sanskrit}
               </text>
@@ -891,7 +957,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
 
             {/* Bottom Right: Location */}
             <g transform="translate(780, 840)">
-              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 10px rgba(0,100,255,0.4))" }}/>
+              <rect x="-80" y="-20" width="160" height="40" rx="20" fill="rgba(10,25,60,0.85)" stroke="rgba(212,175,55,0.6)" strokeWidth="2" className="animate-pulse-blue" />
               <text x="0" y="7" textAnchor="middle" fill="white" fontSize="24" fontWeight="bold" fontFamily="'Outfit',sans-serif">
                 भोपाल
               </text>
@@ -908,7 +974,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
         )}
 
         {/* Concentric Decorative Arcs/Rings to give depth */}
-        <circle cx="500" cy="500" r="390" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="2" strokeDasharray="15, 10" />
+        <circle cx="500" cy="500" r="390" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="2" strokeDasharray="15, 10" className="spin-slow-reverse" />
 
         {/* Planet Transits (Grahas) */}
         {grahas.map((p: any) => {
@@ -922,7 +988,7 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
               key={p.name}
               onMouseEnter={() => setHoveredGraha(p)}
               onMouseLeave={() => setHoveredGraha(null)}
-              style={{ cursor: "pointer", pointerEvents: "all" }}
+              style={{ cursor: "pointer", pointerEvents: "all", transformOrigin: `${gx}px ${gy}px`, transform: isHovered ? "scale(1.2)" : "scale(1)", transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}
             >
               {p.radius !== 390 && (
                 <line 
@@ -941,16 +1007,16 @@ function PremiumClockTowerDial({ decimalGhati, isLive, data, panchang, tzH, simp
             </g>
           );
         })}
-        <circle cx="500" cy="500" r="280" fill="none" stroke="rgba(0,150,255,0.15)" strokeWidth="4" strokeDasharray="30, 15" />
-        <circle cx="500" cy="500" r="230" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="1" strokeDasharray="5, 5" />
+        <circle cx="500" cy="500" r="280" fill="none" stroke="rgba(0,150,255,0.15)" strokeWidth="4" strokeDasharray="30, 15" className="spin-medium" />
+        <circle cx="500" cy="500" r="230" fill="none" stroke="rgba(212,175,55,0.2)" strokeWidth="1" strokeDasharray="5, 5" className="spin-medium-reverse" />
         
         {/* Optional spinning astrolabe rings if we want some motion */}
         <g transform="translate(500, 500)">
           <g style={{ animation: "spinSlow 120s linear infinite" }}>
-            <circle cx="0" cy="0" r="430" fill="none" stroke="rgba(212,175,55,0.15)" strokeWidth="2" strokeDasharray="4, 12" />
+            <circle cx="0" cy="0" r="430" fill="none" stroke="rgba(212,175,55,0.15)" strokeWidth="2" strokeDasharray="4, 12" className="spin-center-slow" />
           </g>
           <g style={{ animation: "spinSlowRev 90s linear infinite" }}>
-            <circle cx="0" cy="0" r="460" fill="none" stroke="rgba(0,150,255,0.1)" strokeWidth="2" strokeDasharray="6, 10" />
+            <circle cx="0" cy="0" r="460" fill="none" stroke="rgba(0,150,255,0.1)" strokeWidth="2" strokeDasharray="6, 10" className="spin-center-slow-reverse" />
           </g>
         </g>
 
@@ -1454,14 +1520,7 @@ export default function Home() {
             borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,0.08),transparent 70%)", pointerEvents: "none"
           }} />
 
-          {loading && (
-            <div style={{
-              position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-              background: "rgba(6,5,10,0.7)", borderRadius: "22px", zIndex: 10
-            }}>
-              <span style={{ color: "#d4af37", fontSize: "13px", letterSpacing: "0.15em" }}>Calculating…</span>
-            </div>
-          )}
+
 
           {/* 1. Large Minimalist Ghati Clock Dial — Astronomical Astrolabe Design */}
           <div style={{ width: "min(90vw, 550px)", height: "min(90vw, 550px)", position: "relative", zIndex: 2 }}>
