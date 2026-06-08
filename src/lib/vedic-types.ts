@@ -279,6 +279,19 @@ export interface VedicTimeData {
   decimalGhati: number;
   elapsedSeconds: number;
   totalDaySeconds: number;
+
+  muhurta: number;
+  kaal: number;
+  kashtha: number;
+  segment: "day" | "night";
+  muhurtaLenSec: number;
+  kashthaLenSec: number;
+  muhurtaIndex: number;
+  anchors: {
+    daySR: string;
+    daySS: string;
+    nextSR: string;
+  };
 }
 
 export interface PraharData {

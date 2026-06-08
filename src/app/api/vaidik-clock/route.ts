@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { calculateVedicData } from "@/lib/vedic-math";
+import { getFullPanchang } from "@/lib/panchang";
 import { getMuhuratScore, UserRole } from "@/lib/muhurat-rules";
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     const role = user_role as UserRole;
 
     const vedicData   = await calculateVedicData(parsedLat, parsedLon, parsedAlt, targetTimeStr);
+    const panchang    = await getFullPanchang(new Date(targetTimeStr), { lat: parsedLat, lon: parsedLon, elevation: parsedAlt });
     const muhurat     = getMuhuratScore(vedicData, role);
 
     // 24-hour hourly forecast
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: vedicData,
+      panchang,
       muhurat: { role, score: muhurat.score, rating: muhurat.rating, breakdown: muhurat.breakdown },
       timeline,
     });
